@@ -1,0 +1,445 @@
+#!/usr/bin/env bash
+# prima
+# 
+# CLI utility for a local Prima local stack
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+###
+# Config
+###
+readonly USER="$(whoami)"
+
+readonly PROJECTS_HOME=${DIR}/../../..
+readonly ARTEMIDE_HOME=${PROJECTS_HOME}/artemide
+readonly SCRIPT_URL="https://raw.githubusercontent.com/primait/pls/master/bin/pls"
+
+readonly DUMP_DB_HOST=db-prima-aurora-staging.prima.it
+readonly DUMP_DB_USERNAME=prima
+readonly DUMP_DB_PASSWORD=
+
+###
+# Utils
+###
+
+_help() {
+    cat <<HEREDOC
+Prima Local Stack
+(more on https://kubernetes.io/docs/reference/kubectl/cheatsheet/)
+
+usage: pls <command>
+
+Primo avvio e troubleshooting
+    install             Installa pls in locale e configura i vari servizi k8s
+    build               Rebuilda i vari container (alias "update", "refresh", "rebuild")
+    dump                Effettua il dump di dati necessari (apikeys, codici istat cittá, etc) dal db di staging a un file locale
+    restore             Carica sul db locale i dati recuperati tramite 'pls dump'
+    fix                 Sistema i permessi delle cartelle
+
+Gestione dell'ambiente
+    stop                Ferma l'ambiente locale
+    start               Avvia l'ambiente locale
+    status              Stampa lo status dei servizi (alias "ps")
+    services            Stampa la lista dei servizi (alias "ls", "ss")
+    reset               Reset completo dell'ambiente locale
+
+Gestione dei servizi
+    add <projects>      Aggiunge i progetti alla lista dei servizi k8s (ad es: pls add prima hal9000)
+    remove <projects>   Rimuove i progetti dalla lista dei servizi k8s (alias "rm") (ad es: pls rm prima hal9000)
+    clean <projects>
+
+    start <project>     Riavvia il servizio
+    open <project>      Apre il servizio nel browser
+    bash <project>      Entra in bash nel container del servizio (alias "sh")
+
+Altro
+    help                Stampa questo messaggio (default)
+HEREDOC
+}
+
+_info() {
+    echo "💬  $0: $1"
+}
+
+_warning() {
+    echo "⚠️  $0: $1"
+}
+
+_error() {
+    echo "❌  $0: $1"
+}
+
+_find_pod() {
+    if [[ $1 ]]; then
+        POD_NAME="$(kubectl get pods | awk '{ print $1 }' | grep $1)"
+        if [[ ${POD_NAME} ]]; then
+            echo ${POD_NAME}
+        else
+            _error "No service '$1' found"
+            echo
+        fi
+    else 
+        _error "No service specified"
+    fi
+}
+
+_find_service() {
+    echo "$(kubectl get services | grep $1)"
+}
+
+_find_service_port() {
+    PORTS="$(_find_service $1 | grep -oP ':[0-9]+\/' | grep -oP '[0-9]+')"
+
+    if [[ ${#PORTS} -gt 5 ]]; then
+        select port in ${PORTS};
+        do
+            echo ${port}
+            break
+        done
+    else
+        echo ${PORTS}
+    fi
+}
+
+_has_minikube() {
+    minikube > /dev/null
+    [[ $? == 0 ]]
+}
+
+_has_pls() {
+    [ -x "$(command -v pls)" ]
+}
+
+_has_systemd_resolved() {
+    sudo systemctl status systemd-resolved -q > /dev/null
+    [[ $? == 0 ]]
+}
+
+###
+# Commands
+###
+
+_update() {
+    local random_string
+    local url
+    _info "Procedo con l'aggiornamento dello script"
+    _info "Salvo in ${scriptpath}/${scriptname}"
+    random_string=$(date +"%s")
+    url="${SCRIPT_URL}"?ran="${random_string}"
+    _info "Recupero script da ${url}"
+    if sudo curl -fsSL ${url} -o "/usr/local/bin/pls"; then
+        _info "Aggiornamento riuscito!"
+    else
+        _error "Problemi nell'aggiornamento"
+    fi
+}
+
+_build() {
+    cd ${PROJECTS_HOME} ;\
+    docker build prima/app/docker/web/dev/ -t prima-nginx:dev ;\
+    docker build prima/app/docker/php/ -t prima-php:dev ;\
+    docker build peano/ -t peano:dev ;\
+    docker build borat/ -t borat:dev ;\
+    docker build bburago/ -t bburago:dev ;\
+    docker build hal9000/ -t hal9000:dev ;\
+    docker build roger/ -t roger:dev ;\
+    cd -
+}
+
+_add() {
+    cd ${ARTEMIDE_HOME}/kubernetes ;
+
+    if [[ -f "infrastructure.yml" ]]; then
+        kubectl apply -f infrastructure.yml
+
+        for project in "$@"
+        do
+            PROJECT_DIR=${PROJECTS_HOME}/${project}
+            if [[ -d "$PROJECT_DIR" ]]; then
+                if [[ -f "${PROJECT_DIR}/kubernetes.yml" ]]; then
+                    cd ${PROJECT_DIR} ;\
+                    kubectl apply -f kubernetes.yml
+                else
+                    _error "kubernetes.yml does not exist, please modify kubernetes.yml.dist🤷"
+                fi
+            else
+                _error "$PROJECT_DIR does not exist"
+            fi
+        done
+    else
+        _error "infrastructure.yml does not exist, please modify infrastructure.yml.dist"
+    fi
+}
+
+_remove() {
+    cd ${ARTEMIDE_HOME}/kubernetes ;\
+    kubectl apply -f infrastructure.yml
+
+    for project in "$@"
+    do
+        PROJECT_DIR=${PROJECTS_HOME}/${project}
+        if [[ -d "$PROJECT_DIR" ]]; then
+            cd ${PROJECT_DIR} ;\
+            kubectl delete -f kubernetes.yml
+        else
+            _error "$PROJECT_DIR does not exist🤷"
+        fi
+    done
+}
+
+_clean() {
+    if [[ $1 ]]; then
+        SERVICE_NAME="$(kubectl get services | grep $1 | awk '{ print $1 }')"
+        if [[ ${SERVICE_NAME} ]]; then
+            _info "Removing resources for $SERVICE_NAME\n"
+            kubectl delete pod,service "${SERVICE_NAME}"
+        fi
+    else
+        _error "No service specified"
+    fi
+}
+
+_fix_k8s_permissions() {
+    sudo chown ${USER}:${USER} ~/.kube/ -R
+    sudo chown ${USER}:${USER} ~/.minikube/ -R
+}
+
+_dump() {
+    printf "Dump prima data:\n" ;\
+    mysqldump prima --single-transaction -h ${DUMP_DB_HOST} -u ${DUMP_DB_USERNAME} --password \
+    bo_operator \
+    user_configuration \
+    security_apikey \
+    company \
+    criteria_data \
+    criteria_group \
+    criteria_value \
+    document_type \
+    document_type_category \
+    document_type_type_category \
+    guarantee \
+    guarantee_deductible \
+    guarantee_limit \
+    occupation \
+    place_city \
+    place_city_zip_code \
+    place_country \
+    place_province \
+    place_region \
+    place_zip_code \
+    place_zone \
+    pricer_config \
+    pricer_discount \
+    pricer_discount_code \
+    pricer_guarantee_formula > prima_data.sql
+
+    printf "Dump borat data:\n" ;\
+    # borat_data.sql
+}
+    
+_restore() {
+    printf "Restore mysql data:\n" ;\
+    mysql -u prima --password=prima --port 32306 -h 127.0.0.1 prima < prima_data.sql
+
+    printf "Restore borat data:\n" ;\
+    # borat_data.sql
+}
+
+_status() {
+    printf "Deployments:\n" ;\
+    kubectl get deployments --all-namespaces ;\
+    
+    printf "\nServices:\n" ;\
+    kubectl get services
+    
+    printf "\nPods:\n" ;\
+    kubectl get pods
+}
+
+_stop() {
+    sudo minikube stop
+}
+
+_start() {
+    if _has_systemd_resolved; then
+        sudo minikube start --apiserver-ips=127.0.0.1 --apiserver-name=localhost --vm-driver=none --extra-config=kubelet.resolv-conf=/run/systemd/resolve/resolv.conf
+    else
+        _warning "systemd-resolved not detected"
+        sudo minikube start --apiserver-ips=127.0.0.1 --apiserver-name=localhost --vm-driver=none
+    fi
+}
+
+_restart() {
+    for project in "$@"
+    do
+        POD_NAME=$(_find_pod ${project})
+        if [[ ${POD_NAME} ]]; then
+            _info "Restarting $POD_NAME"
+            kubectl delete pod ${POD_NAME}
+        fi
+    done
+}
+
+_open() {
+    SERVICE_PORT=$(_find_service_port $1)
+    if [[ ${SERVICE_PORT} ]]; then
+        URL="http://prima:$SERVICE_PORT/"
+        _info "Opening $URL"
+        
+        case "$OSTYPE" in
+            darwin*) open ${URL} ;;
+            linux*) xdg-open ${URL} ;;
+            *) echo "Unknown OS $OSTYPE" ;;
+        esac
+    else
+        _error "$1 not found. Try to see if it's listed with 'pls ss'."
+    fi
+}
+
+_bash() {
+    POD_NAME=$(_find_pod $1)
+    if [[ ${POD_NAME} ]]; then
+        _info "Entering $POD_NAME"
+        if [[ $2 ]]; then
+            kubectl exec -it ${POD_NAME} --container $1-$2-container -- bash
+        else
+            kubectl exec -it ${POD_NAME} bash
+        fi
+    fi
+}
+
+_logs() {
+    POD_NAME=$(_find_pod $1)
+    if [[ ${POD_NAME} ]]; then
+        _info "Following $POD_NAME"
+        kubectl logs -f ${POD_NAME} --all-containers=true
+    fi
+}
+
+_inspect() {
+    POD_NAME=$(_find_pod $1)
+    if [[ ${POD_NAME} ]]; then
+        _info "Inspecting $POD_NAME"
+        kubectl describe pod ${POD_NAME}
+    fi
+}
+
+_reset() {
+    kubectl delete deployment --all
+}
+
+_kys() {
+    echo "You first"
+}
+
+###
+# MAIN
+###
+
+_main() {
+    if _has_minikube; then
+        COMMAND=$1
+        shift
+        
+        if [[ install == ${COMMAND} ]] || _has_pls; then
+
+            case ${COMMAND} in
+                build|rebuild|refresh)
+                    _build
+                    if [[  $@ ]]; then
+                        _add $@
+                    fi
+                    ;;
+
+                add|up)
+                    _add $@
+                    ;;
+
+                remove|rm|down)
+                    _remove $@
+                    ;;
+
+                clean)
+                    _clean $@
+                    ;;
+
+                install)
+                    _update
+                    _start
+                    _build
+                    _fix_k8s_permissions
+                    ;;
+
+                update)
+                    _update
+                    ;;
+
+                fix)
+                    _fix_k8s_permissions
+                    ;;
+
+                start)
+                    _start
+                    ;;
+
+                stop)
+                    _stop
+                    ;;
+
+                status|services|ls|ps|ss)
+                    _status
+                    ;;
+
+                reset)
+                    _reset
+                    ;;
+
+                restart)
+                    _restart $@
+                    ;;
+
+                open)
+                    _open $@
+                    ;;
+
+                bash|sh)
+                    _bash $@
+                    ;;
+
+                logs|log)
+                    _logs $@
+                    ;;
+
+                inspect|describe)
+                    _inspect $@
+                    ;;
+                
+                dump)
+                    _dump
+                    ;;
+                
+                restore)
+                    _restore
+                    ;;
+
+                die|kys)
+                    _kys
+                    ;;
+
+                ""|help)
+                    _help
+                    ;;
+
+                *)
+                    _error "$COMMAND is not a valid command. Use 'pls help'."
+                    ;;
+            esac
+        else
+            _error "'pls' is not installed locally. Pls run 'pls install' first."
+        fi
+    else
+        _error "'minikube' is not installed. See: https://github.com/primait/board/wiki/Kubernetes-experiments"
+    fi
+}
+
+_main $@

@@ -1,0 +1,259 @@
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: postgres-pv
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 8Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/k8s-pv/postgres"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app: postgres
+  name: postgres-pv-claim
+spec:
+  storageClassName: manual
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 8Gi
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: mysql-pv
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 8Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/k8s-pv/mysql"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app: mysql
+  name: mysql-pv-claim
+spec:
+  storageClassName: manual
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 8Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbit-service
+  labels:
+    app.kubernetes.io/name: rabbit
+spec:
+  type: NodePort
+  ports:
+    - port: 5672
+      name: amqp
+      targetPort: 5672
+      protocol: TCP
+    - port: 15672
+      name: amqp-web
+      targetPort: 15672
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: rabbit
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  labels:
+    app.kubernetes.io/name: redis
+spec:
+  type: NodePort
+  ports:
+    - port: 6379
+      targetPort: 6379
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: redis
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+  labels:
+    app.kubernetes.io/name: mysql
+spec:
+  type: NodePort
+  ports:
+    - port: 3306
+      targetPort: 3306
+      protocol: TCP
+      nodePort: 32306
+  selector:
+    app.kubernetes.io/name: mysql
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  labels:
+    app.kubernetes.io/name: postgres
+spec:
+  type: NodePort
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+      nodePort: 32432
+  selector:
+    app.kubernetes.io/name: postgres
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbit
+  labels:
+    app.kubernetes.io/name: rabbit
+spec:
+  replicas:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rabbit
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rabbit
+    spec:
+      containers:
+        - name: rabbit-container
+          image: rabbitmq:3-management
+          ports:
+            - name: amqp
+              containerPort: 5672
+              protocol: TCP
+            - name: amqp-web
+              containerPort: 15672
+              protocol: TCP
+          env:
+            - name: RABBITMQ_DEFAULT_VHOST
+              value: /
+            - name: RABBITMQ_DEFAULT_USER
+              value: prima
+            - name: RABBITMQ_DEFAULT_PASS
+              value: prima
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app.kubernetes.io/name: redis
+spec:
+  replicas:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+    spec:
+      containers:
+        - name: redis-container
+          image: redis:3.2-alpine
+          ports:
+            - name: redis
+              containerPort: 6379
+              protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  labels:
+    app.kubernetes.io/name: mysql
+spec:
+  replicas:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mysql
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mysql
+    spec:
+      containers:
+        - name: mysql-container
+          image: mysql:5.6
+          ports:
+            - name: mysqldb
+              containerPort: 3306
+              protocol: TCP
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: prima      
+            - name: MYSQL_DATABASE
+              value: prima
+            - name: MYSQL_USER
+              value: prima
+            - name: MYSQL_PASSWORD
+              value: prima
+          volumeMounts:
+            - name: mysql-persistent-storage
+              mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-persistent-storage
+        persistentVolumeClaim:
+          claimName: mysql-pv-claim
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/name: postgres
+spec:
+  replicas:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+    spec:
+      containers:
+        - name: postgres-container
+          image: postgres:9.6-alpine
+          ports:
+            - name: postgresdb
+              containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRES_PASSWORD
+              value: prima      
+            - name: POSTGRES_USER
+              value: prima
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: postgres-pv-claim
+      volumes:
+        - name: postgres-pv-claim
+          persistentVolumeClaim:
+            claimName: postgres-pv-claim
