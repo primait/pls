@@ -3,20 +3,41 @@
 # 
 # CLI utility for a local Prima local stack
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+readonly DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+readonly USER="$(whoami)"
+readonly PLS_CFG_DIR=~/.pls
+readonly PLS_CFG=$PLS_CFG_DIR/config.rc
 
 ###
 # Config
 ###
-readonly USER="$(whoami)"
 
-readonly PROJECTS_HOME=${DIR}/../../..
-readonly ARTEMIDE_HOME=${PROJECTS_HOME}/artemide
-readonly SCRIPT_URL="https://raw.githubusercontent.com/primait/pls/master/bin/pls"
+_load_cfg() {
+    if [ -f $PLS_CFG ] ; then 
+        source $PLS_CFG
+    fi
 
-readonly DUMP_DB_HOST=db-prima-aurora-staging.prima.it
-readonly DUMP_DB_USERNAME=prima
-readonly DUMP_DB_PASSWORD=
+    PROJECTS_DIR=${PROJECTS_DIR:-$(readlink -f $DIR/../..)}
+    PERSISTENTVOLUMES_DIR=${PERSISTENTVOLUMES_DIR:-/mnt/k8s-pv}
+    PLS_DIR=${PLS_DIR:-$PROJECTS_DIR/pls}
+    SCRIPT_URL=${SCRIPT_URL:-"https://raw.githubusercontent.com/primait/pls/master/bin/pls"}
+    SCRIPT_PATH=${SCRIPT_PATH:-"/usr/local/bin/pls"}
+    DUMP_DB_HOST=${DUMP_DB_HOST:-db-prima-aurora-staging.prima.it}
+    DUMP_DB_USERNAME=${DUMP_DB_USERNAME:-prima}
+    DUMP_DB_PASSWORD=${DUMP_DB_PASSWORD:-}
+}
+
+_save_cfg() {
+    echo """
+PROJECTS_DIR=$PROJECTS_DIR
+PLS_DIR=$PLS_DIR
+SCRIPT_URL=$SCRIPT_URL
+SCRIPT_PATH=$SCRIPT_PATH
+DUMP_DB_HOST=$DUMP_DB_HOST
+DUMP_DB_USERNAME=$DUMP_DB_USERNAME
+DUMP_DB_PASSWORD=$DUMP_DB_PASSWORD
+    """ > $PLS_CFG
+}
 
 ###
 # Utils
@@ -31,12 +52,14 @@ usage: pls <command>
 
 Primo avvio e troubleshooting
     install             Installa pls in locale e configura i vari servizi k8s
-    build               Rebuilda i vari container (alias "update", "refresh", "rebuild")
-    dump                Effettua il dump di dati necessari (apikeys, codici istat cittá, etc) dal db di staging a un file locale
-    restore             Carica sul db locale i dati recuperati tramite 'pls dump'
+    build <services?>   Rebuilda i vari container (alias "update", "refresh", "rebuild")
     fix                 Sistema i permessi delle cartelle
 
-Gestione dell'ambiente
+Database
+    dump                Effettua il dump di dati necessari (apikeys, codici istat cittá, etc) dal db di staging a un file locale
+    restore             Carica sul db locale i dati recuperati tramite 'pls dump'
+
+Gestione dell'ambiente locale
     stop                Ferma l'ambiente locale
     start               Avvia l'ambiente locale
     status              Stampa lo status dei servizi (alias "ps")
@@ -44,13 +67,12 @@ Gestione dell'ambiente
     reset               Reset completo dell'ambiente locale
 
 Gestione dei servizi
-    add <projects>      Aggiunge i progetti alla lista dei servizi k8s (ad es: pls add prima hal9000)
-    remove <projects>   Rimuove i progetti dalla lista dei servizi k8s (alias "rm") (ad es: pls rm prima hal9000)
-    clean <projects>
+    add <services>      Aggiunge i servizi allo stack locale (ad es: pls add prima hal9000)
+    remove <services>   Rimuove i servizi dallo stack locale (alias "rm") (ad es: pls rm prima hal9000)
+    restart <services>  Riavvia il servizio
 
-    start <project>     Riavvia il servizio
-    open <project>      Apre il servizio nel browser
-    bash <project>      Entra in bash nel container del servizio (alias "sh")
+    open <service>      Apre il servizio nel browser
+    bash <service>      Entra in bash nel container del servizio (alias "sh")
 
 Altro
     help                Stampa questo messaggio (default)
@@ -87,17 +109,19 @@ _find_service() {
     echo "$(kubectl get services | grep $1)"
 }
 
-_find_service_port() {
-    PORTS="$(_find_service $1 | grep -oP ':[0-9]+\/' | grep -oP '[0-9]+')"
+_find_service_ports() {
+    echo "$(_find_service $1 | grep -oP ':[0-9]+\/' | grep -oP '[0-9]+')"
+}
 
-    if [[ ${#PORTS} -gt 5 ]]; then
-        select port in ${PORTS};
-        do
-            echo ${port}
-            break
-        done
-    else
-        echo ${PORTS}
+_check_requirements() {
+    if [ "${PLS_ALLOW_ROOT:-0}" -ne 1 ] && [ "${EUID}" -eq 0 ] ;
+        then _error "Please do not run as root. If you *really* know what you are doing, set the env variable PLS_ALLOW_ROOT=1. (es. 'sudo PLS_ALLOW_ROOT=1 pls start')"
+        exit
+    fi
+
+    if ! _has_minikube
+        then _error "'minikube' is not installed. See: https://github.com/primait/board/wiki/Kubernetes-experiments"
+        exit
     fi
 }
 
@@ -119,65 +143,105 @@ _has_systemd_resolved() {
 # Commands
 ###
 
+_install() {
+    _setup
+    _update
+    _start
+    _build
+    _fix_k8s_permissions
+    _info "Everything should be set up and running. Now you can add services with 'pls add *service*'. Try with 'pls add prima'! 👏👏"
+}
+
+_setup() {
+    _info "Creating configuration directory '$PLS_CFG_DIR'"
+    mkdir -p $PLS_CFG_DIR
+
+    read -p "Where are your projects located? [$PROJECTS_DIR]: " projects_dir
+    PROJECTS_DIR=${projects_dir:-$PROJECTS_DIR}
+
+    read -p "Where should the persistent volumes be saved? [$PERSISTENTVOLUMES_DIR]: " persistentvolumes_dir
+    PERSISTENTVOLUMES_DIR=${persistentvolumes_dir:-$PERSISTENTVOLUMES_DIR}
+
+    _save_cfg
+    _load_cfg
+}
+
 _update() {
     local random_string
     local url
-    _info "Procedo con l'aggiornamento dello script"
-    _info "Salvo in ${scriptpath}/${scriptname}"
+    _info "Updating script..."
+    _info "Saving in $SCRIPT_PATH"
     random_string=$(date +"%s")
     url="${SCRIPT_URL}"?ran="${random_string}"
-    _info "Recupero script da ${url}"
-    if sudo curl -fsSL ${url} -o "/usr/local/bin/pls"; then
-        _info "Aggiornamento riuscito!"
+    _info "Fetching script from ${url}"
+    if sudo curl -fsSL ${url} -o "$SCRIPT_PATH"; then
+        sudo chmod +x $SCRIPT_PATH
+        _info "Update completed!"
     else
-        _error "Problemi nell'aggiornamento"
+        _error "There was a problem during the update."
     fi
 }
 
 _build() {
-    cd ${PROJECTS_HOME} ;\
-    docker build prima/app/docker/web/dev/ -t prima-nginx:dev ;\
-    docker build prima/app/docker/php/ -t prima-php:dev ;\
-    docker build peano/ -t peano:dev ;\
-    docker build borat/ -t borat:dev ;\
-    docker build bburago/ -t bburago:dev ;\
-    docker build hal9000/ -t hal9000:dev ;\
-    docker build roger/ -t roger:dev ;\
+    local project
+    local projects
+
+    projects="$@"
+    if [ -z $projects ] ; then
+        projects="prima peano borat bburago hal9000 roger"
+    fi
+
+    cd ${PROJECTS_DIR}
+    for project in $projects
+    do
+
+        case $project in
+        prima)
+            docker build prima/app/docker/web/dev/ -t prima-nginx:dev
+            docker build prima/app/docker/php/ -t prima-php:dev
+            ;;
+        *) 
+            docker build $project/ -t $project:dev
+            ;;
+        esac
+    done
+
     cd -
 }
 
 _add() {
-    cd ${ARTEMIDE_HOME}/kubernetes ;
+    cd ${PLS_DIR}
 
-    if [[ -f "infrastructure.yml" ]]; then
-        kubectl apply -f infrastructure.yml
-
-        for project in "$@"
-        do
-            PROJECT_DIR=${PROJECTS_HOME}/${project}
-            if [[ -d "$PROJECT_DIR" ]]; then
-                if [[ -f "${PROJECT_DIR}/kubernetes.yml" ]]; then
-                    cd ${PROJECT_DIR} ;\
-                    kubectl apply -f kubernetes.yml
-                else
-                    _error "kubernetes.yml does not exist, please modify kubernetes.yml.dist🤷"
-                fi
-            else
-                _error "$PROJECT_DIR does not exist"
-            fi
-        done
-    else
-        _error "infrastructure.yml does not exist, please modify infrastructure.yml.dist"
+    if [[ ! -f "infrastructure.yml" ]]; then
+        sed  -e "s|{PERSISTENTVOLUMES_DIR}|$PERSISTENTVOLUMES_DIR|" infrastructure.yml.dist > infrastructure.yml
     fi
+
+    kubectl apply -f infrastructure.yml
+    for project in "$@"
+    do
+        PROJECT_DIR=${PROJECTS_DIR}/$project
+        if [[ ! -d "$PROJECT_DIR" ]]; then
+            echo "Project not found locally. Attempting to fetch it from repository..."
+            git clone git@github.com:primait/$project.git $PROJECT_DIR
+        fi
+
+        cd ${PROJECT_DIR} 
+        if [[ ! -f "${PROJECT_DIR}/kubernetes.yml" ]]; then
+            echo "kubernetes.yml not found. Generating..."
+            sed  -e "s|{HOME}|$HOME|" -e "s|{PROJECTS_HOME}|$PROJECTS_DIR|" kubernetes.yml.dist > kubernetes.yml
+        fi
+
+        kubectl apply -f kubernetes.yml
+    done
 }
 
 _remove() {
-    cd ${ARTEMIDE_HOME}/kubernetes ;\
+    cd ${PLS_CFG_DIR}/kubernetes ;\
     kubectl apply -f infrastructure.yml
 
     for project in "$@"
     do
-        PROJECT_DIR=${PROJECTS_HOME}/${project}
+        PROJECT_DIR=${PROJECTS_DIR}/$project
         if [[ -d "$PROJECT_DIR" ]]; then
             cd ${PROJECT_DIR} ;\
             kubectl delete -f kubernetes.yml
@@ -187,25 +251,17 @@ _remove() {
     done
 }
 
-_clean() {
-    if [[ $1 ]]; then
-        SERVICE_NAME="$(kubectl get services | grep $1 | awk '{ print $1 }')"
-        if [[ ${SERVICE_NAME} ]]; then
-            _info "Removing resources for $SERVICE_NAME\n"
-            kubectl delete pod,service "${SERVICE_NAME}"
-        fi
-    else
-        _error "No service specified"
-    fi
-}
-
 _fix_k8s_permissions() {
     sudo chown ${USER}:${USER} ~/.kube/ -R
     sudo chown ${USER}:${USER} ~/.minikube/ -R
 }
 
 _dump() {
-    printf "Dump prima data:\n" ;\
+    local output
+
+    output=$PLS_CFG_DIR/prima_data.sql
+
+    _info "Dump prima data:\n" ;\
     mysqldump prima --single-transaction -h ${DUMP_DB_HOST} -u ${DUMP_DB_USERNAME} --password \
     bo_operator \
     user_configuration \
@@ -231,15 +287,17 @@ _dump() {
     pricer_config \
     pricer_discount \
     pricer_discount_code \
-    pricer_guarantee_formula > prima_data.sql
+    pricer_guarantee_formula > $output
 
-    printf "Dump borat data:\n" ;\
+    _info "Prima data dumped in '$output'. Use it to restore your local database with 'pls restore'."
+
+    # printf "Dump borat data:\n" ;
     # borat_data.sql
 }
     
 _restore() {
     printf "Restore mysql data:\n" ;\
-    mysql -u prima --password=prima --port 32306 -h 127.0.0.1 prima < prima_data.sql
+    mysql -u prima --password=prima --port 32306 -h 127.0.0.1 prima < $PLS_CFG_DIR/prima_data.sql
 
     printf "Restore borat data:\n" ;\
     # borat_data.sql
@@ -272,7 +330,7 @@ _start() {
 _restart() {
     for project in "$@"
     do
-        POD_NAME=$(_find_pod ${project})
+        POD_NAME=$(_find_pod $project)
         if [[ ${POD_NAME} ]]; then
             _info "Restarting $POD_NAME"
             kubectl delete pod ${POD_NAME}
@@ -281,14 +339,30 @@ _restart() {
 }
 
 _open() {
-    SERVICE_PORT=$(_find_service_port $1)
-    if [[ ${SERVICE_PORT} ]]; then
-        URL="http://prima:$SERVICE_PORT/"
-        _info "Opening $URL"
-        
+    local ports
+    local port
+    local url
+
+    ports=$(_find_service_ports $1)
+    if [[ ${#ports} -gt 5 ]]; then
+        echo "Multiple service ports detected. Which one should I open?"
+
+        select port in $ports;
+        do
+            port=$port
+            break
+        done
+    else
+        port=$ports
+    fi
+
+    if [[ $port ]]; then
+        url="http://prima:$port/"
+        _info "Opening $url"
+          
         case "$OSTYPE" in
-            darwin*) open ${URL} ;;
-            linux*) xdg-open ${URL} ;;
+            darwin*) open $url ;;
+            linux*) xdg-open $url ;;
             *) echo "Unknown OS $OSTYPE" ;;
         esac
     else
@@ -325,7 +399,23 @@ _inspect() {
 }
 
 _reset() {
-    kubectl delete deployment --all
+    local proceed
+
+    read -p "This will delete all pods, services and deployments. Are you sure you want to reset? Type 'yes' to proceed: " proceed
+
+    if [[ "yes" == $proceed ]] ; then
+        kubectl delete deployment --all
+    else
+        _warning "Reset cancelled."
+    fi
+}
+
+_urls() {
+    echo "$1 exposed at:"
+    for port in $(_find_service_ports $1)
+    do
+        echo "http://prima:$port"
+    done
 }
 
 _kys() {
@@ -337,109 +427,114 @@ _kys() {
 ###
 
 _main() {
-    if _has_minikube; then
-        COMMAND=$1
-        shift
-        
-        if [[ install == ${COMMAND} ]] || _has_pls; then
+    _load_cfg
+    _check_requirements
 
-            case ${COMMAND} in
-                build|rebuild|refresh)
-                    _build
-                    if [[  $@ ]]; then
-                        _add $@
-                    fi
-                    ;;
+    COMMAND=$1
+    shift
 
-                add|up)
-                    _add $@
-                    ;;
-
-                remove|rm|down)
-                    _remove $@
-                    ;;
-
-                clean)
-                    _clean $@
-                    ;;
-
-                install)
-                    _update
-                    _start
-                    _build
-                    _fix_k8s_permissions
-                    ;;
-
-                update)
-                    _update
-                    ;;
-
-                fix)
-                    _fix_k8s_permissions
-                    ;;
-
-                start)
-                    _start
-                    ;;
-
-                stop)
-                    _stop
-                    ;;
-
-                status|services|ls|ps|ss)
-                    _status
-                    ;;
-
-                reset)
-                    _reset
-                    ;;
-
-                restart)
-                    _restart $@
-                    ;;
-
-                open)
-                    _open $@
-                    ;;
-
-                bash|sh)
-                    _bash $@
-                    ;;
-
-                logs|log)
-                    _logs $@
-                    ;;
-
-                inspect|describe)
-                    _inspect $@
-                    ;;
-                
-                dump)
-                    _dump
-                    ;;
-                
-                restore)
-                    _restore
-                    ;;
-
-                die|kys)
-                    _kys
-                    ;;
-
-                ""|help)
-                    _help
-                    ;;
-
-                *)
-                    _error "$COMMAND is not a valid command. Use 'pls help'."
-                    ;;
-            esac
-        else
-            _error "'pls' is not installed locally. Pls run 'pls install' first."
-        fi
-    else
-        _error "'minikube' is not installed. See: https://github.com/primait/board/wiki/Kubernetes-experiments"
+    if [[ install != ${COMMAND} ]] && ! _has_pls
+        then _error "'pls' is not installed locally. Pls run 'pls install' first."
+        exit
     fi
+
+    case ${COMMAND} in
+        # Setup/Troubleshooting
+
+        build|rebuild|refresh)
+            _build $@
+            ;;
+
+        install)
+            _install
+            ;;
+
+        update)
+            _update
+            ;;
+
+        fix)
+            _fix_k8s_permissions
+            ;;
+
+        # K8S management
+
+        start)
+            _start
+            ;;
+
+        stop)
+            _stop
+            ;;
+
+        reset)
+            _reset
+            ;;
+
+        # Services management
+
+        add|up)
+            _add $@
+            ;;
+
+        remove|rm|down)
+            _remove $@
+            ;;
+
+        open)
+            _open $@
+            ;;
+
+        bash|sh)
+            _bash $@
+            ;;
+
+        restart)
+            _restart $@
+            ;;
+            
+        urls|url)
+            _urls $@
+            ;;
+
+        # Debugging
+
+        status|services|ls|ps|ss)
+            _status
+            ;;
+
+        logs|log)
+            _logs $@
+            ;;
+
+        inspect|describe)
+            _inspect $@
+            ;;
+
+        # DB
+        
+        dump)
+            _dump
+            ;;
+        
+        restore)
+            _restore
+            ;;
+
+        # Misc
+
+        die|kys)
+            _kys
+            ;;
+
+        ""|help)
+            _help
+            ;;
+
+        *)
+            _error "$COMMAND is not a valid command. Use 'pls help'."
+            ;;
+    esac
 }
 
 _main $@

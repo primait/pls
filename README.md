@@ -1,104 +1,52 @@
-# Creazione di un nuovo stack con kubernetes
+# Prima Local Stack (pls)
 
-## Operazioni preliminari
+## Prima installazione
 
-Fare il checkout del branch experiment/k8s nei vari microservizi disponibili (hal9000, prima, peano, borat).
-Portarsi sulla cartella dove sono presenti i suddetti microservizi e compilare i relativi containers:
+* Clona questo repository 
+  * `git clone git@github.com:primait/pls.git`
+* Installa `pls` in locale con
+  * `cd pls`
+  * `./bin/pls install`
+* Segui le istruzioni
 
-- ngnix
-```
-docker build prima/app/docker/web/dev/ -t prima-nginx:dev
-```
+## Start/stop
 
-- php
-```
-docker build prima/app/docker/php/ -t prima-php:dev
-```
+Avvia/ferma lo stack Kubernetes e i servizi associati con
 
-- peano
-```
-docker build peano/ -t peano:dev
-```
+* `pls start`
+* `pls stop`
 
-- borat
-```
-docker build borat/ -t borat:dev
-```
+## Gestione servizi
 
-- hal9000
-```
-docker build hal9000/ -t hal9000:dev
-```
+* Aggiungi con `pls add *nome_servizio*`
+* Rimuovi con `pls rm *nome_servizio*`
+* Riavvia con `pls restart *nome_servizio*`
 
-## Kubernetes cluster
+In caso tu abbia modificato il container Docker, `pls rebuild *nome_servizio*`
+🔎 ProTip: Prova a passare multipli servizi! (ad es. `pls add prima borat hal9000`)
 
-Per l'installazione seguire la [guida](https://github.com/primait/board/wiki/Kubernetes-experiments)
-All'interno di ogni progetto é presente un file `kubernetes.yml.dist`; copiateli in `kubernetes.yml` e, all'interno di ognuno, sostituite i placeholder {HOME} con la HOME del proprio utente, e {PROJECTS_HOME} con il path della root dei vari progetti (in modo che {PROJECTS_HOME}/prima, {PROJECTS_HOME}/hal9000, {PROJECTS_HOME}/etc... puntino alle directory dei progetti)
+## Accedere a un servizio
 
-Fate partire i comandi:
-```
-kubectl apply -f infrastructure.yml
-kubectl apply -f kubernetes.yml
-```
+A parte alcune eccezioni (Borat), Kubernetes assegna a ogni servizio una porta random in range 30000~3xxxx.
+Per poter aprire direttamente il servizio nel browser , `pls open *nome_servizio*`.
+In caso tu sia interessato soltanto agli indirizzi a cui é possibile accedere, `pls url *nome_servizio*`
 
-## Operazioni preliminari sui dati
+*NB*: Alcuni servizi (Borat, Rabbit) espongono multiple porte; in questo caso ti verrá presentato un prompt per scegliere quale aprire.
 
-- dump dei dati di prima/peano
-```
-mysqldump prima --single-transaction -h {host} -u {user} -p \
-    bo_operator \
-    user_configuration \
-    security_apikey \
-    company \
-    criteria_data \
-    criteria_group \
-    criteria_value \
-    document_type \
-    document_type_category \
-    document_type_type_category \
-    guarantee \
-    guarantee_deductible \
-    guarantee_limit \
-    occupation \
-    place_city \
-    place_city_zip_code \
-    place_country \
-    place_province \
-    place_region \
-    place_zip_code \
-    place_zone \
-    pricer_config \
-    pricer_discount \
-    pricer_discount_code \
-    pricer_guarantee_formula \
-    migration_versions > prima_data.sql
-```
+## Debugging 
 
-- modificare borat per l'apikey (aggiungere il proprio utente qualora non ci fosse)
+* Per accedere in _bash_, `pls bash *nome_servizio*` 
+* Per leggere i log, `pls log *nome_servizio*`
+* Per visionare lo status dettagliato dei container, `pls inspect *nome_servizio*`
+* Per visionare lo status generale di Kubernetes, `pls status`
 
-- importare i dati in hal9000
-```
-mix import.engines
-```
+## Aggiornamento
 
-## Utility commands
+É possibile aggiornare `pls` all'ultima versione con `pls update`
 
-```
-kubectl get services
-```
+## 🔥 Oh no é tutto rotto 🔥
 
-```
-kubectl get pod
-```
-
-```
-kubectl logs --tail=200 -f -l app.kubernetes.io/name=hal9000
-```
-
-```
-kubectl describe pod {pod-id}
-```
-
-```
-kubectl exec -it {pod-id}  -- bash
-```
+* Kubernetes mi da problemi di permessi!
+  * `pls fix`
+* Opzione nucleare
+  * `pls reset` (*NB*: Resetta tutto)
