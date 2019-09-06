@@ -174,12 +174,8 @@ _update() {
     random_string=$(date +"%s")
     url="${SCRIPT_URL}"?ran="${random_string}"
     _info "Fetching script from ${url}"
-    if sudo curl -fsSL ${url} -o "$SCRIPT_PATH"; then
-        sudo chmod +x $SCRIPT_PATH
-        _info "Update completed!"
-    else
-        _error "There was a problem during the update."
-    fi
+    # @TODO Cleanup. Keep this as a single command! If we replace the script while we're running it, bad things happen. This *should* ensure we're going to run this line and exit the script as soon as we're done.
+    sudo curl -fsSL ${url} -o "$SCRIPT_PATH" && sudo chmod +x $SCRIPT_PATH && _info "Update completed!" && exit
 }
 
 _build() {
