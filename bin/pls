@@ -14,6 +14,7 @@ readonly PLS_CFG=$PLS_CFG_DIR/config.rc
 
 _load_cfg() {
     if [ -f $PLS_CFG ] ; then 
+        _info "Loading configuration from $PLS_CFG"
         source $PLS_CFG
     fi
 
@@ -36,7 +37,9 @@ SCRIPT_PATH=$SCRIPT_PATH
 DUMP_DB_HOST=$DUMP_DB_HOST
 DUMP_DB_USERNAME=$DUMP_DB_USERNAME
 DUMP_DB_PASSWORD=$DUMP_DB_PASSWORD
-    """ > $PLS_CFG
+""" > $PLS_CFG
+
+    _info "Configuration updated!"
 }
 
 ###
@@ -254,11 +257,33 @@ _fix_k8s_permissions() {
 
 _dump() {
     local output
+    local db_password
+    local should_save
+    
+    if [ -z $DUMP_DB_PASSWORD ] ; then
+        while [ -z $DUMP_DB_PASSWORD ] ; do
+            read -sp "Enter password for $DUMP_DB_USERNAME@$DUMP_DB_HOST: " db_password
+            DUMP_DB_PASSWORD=$db_password
 
-    output=$PLS_CFG_DIR/prima_data.sql
+            echo ""
 
-    _info "Dump prima data:\n" ;\
-    mysqldump prima --single-transaction -h ${DUMP_DB_HOST} -u ${DUMP_DB_USERNAME} --password \
+            if [ ! -z $DUMP_DB_PASSWORD ] ; then
+                read -p "Should I save this password locally? (y/N): " should_save
+                if [[ "y" == $(echo $should_save | tr A-Z a-z)  ]] ; then
+                    _save_cfg
+                else
+                    _info "Password not saved"
+                fi
+            fi
+        done
+    else
+        _info "Using password saved in configuration files..."
+    fi
+
+    output=$PLS_CFG_DIR/dump/prima_data.sql
+
+    _info "Dumping data from database 'prima' ($DUMP_DB_USERNAME@$DUMP_DB_HOST) into $output" ;\
+    mysqldump prima --single-transaction -h ${DUMP_DB_HOST} -u ${DUMP_DB_USERNAME} --password=$DUMP_DB_PASSWORD \
     bo_operator \
     user_configuration \
     security_apikey \
@@ -292,10 +317,10 @@ _dump() {
 }
     
 _restore() {
-    printf "Restore mysql data:\n" ;\
-    mysql -u prima --password=prima --port 32306 -h 127.0.0.1 prima < $PLS_CFG_DIR/prima_data.sql
+    printf "Restoring mysql data:\n" ;\
+    mysql -u prima --password=prima --port 32306 -h 127.0.0.1 prima < $PLS_CFG_DIR/dump/prima_data.sql
 
-    printf "Restore borat data:\n" ;\
+    # printf "Restore borat data:\n" ;\
     # borat_data.sql
 }
 
@@ -399,7 +424,7 @@ _reset() {
 
     read -p "This will delete all pods, services and deployments. Are you sure you want to reset? Type 'yes' to proceed: " proceed
 
-    if [[ "yes" == $proceed ]] ; then
+    if [[ "yes" == $(echo $proceed | tr A-Z a-z) ]] ; then
         kubectl delete deployment --all
     else
         _warning "Reset cancelled."
@@ -426,7 +451,7 @@ _main() {
     _load_cfg
     _check_requirements
 
-    COMMAND=$1
+    COMMAND=$(echo $1 | tr A-Z a-z)
     shift
 
     if [[ install != ${COMMAND} ]] && ! _has_pls
