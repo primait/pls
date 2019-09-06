@@ -23,7 +23,13 @@ Avvia/ferma lo stack Kubernetes e i servizi associati con
 * Riavvia con `pls restart *nome_servizio*`
 
 In caso tu abbia modificato il container Docker, `pls rebuild *nome_servizio*`
-🔎 ProTip: Prova a passare multipli servizi! (ad es. `pls add prima borat hal9000`)
+
+🔎 _ProTip_: Prova a passare multipli servizi! (ad es. `pls add prima borat hal9000`)
+
+⚠️ **NB**: Se avevi l'ambiente in locale giá configurato, assicurati di aggiornare i seguenti file con i valori presenti nell'omonimo file `*.dist`
+  * Prima
+    * `app/config/parameters.yml`
+
 
 ## Accedere a un servizio
 
@@ -31,7 +37,7 @@ A parte alcune eccezioni (Borat), Kubernetes assegna a ogni servizio una porta r
 Per poter aprire direttamente il servizio nel browser , `pls open *nome_servizio*`.
 In caso tu sia interessato soltanto agli indirizzi a cui é possibile accedere, `pls url *nome_servizio*`
 
-*NB*: Alcuni servizi (Borat, Rabbit) espongono multiple porte; in questo caso ti verrá presentato un prompt per scegliere quale aprire.
+⚠️ **NB**: Alcuni servizi (Borat, Rabbit) espongono multiple porte; in questo caso ti verrá presentato un prompt per scegliere quale aprire.
 
 ## Debugging 
 
@@ -45,8 +51,9 @@ In caso tu sia interessato soltanto agli indirizzi a cui é possibile accedere, 
 É possibile aggiornare `pls` all'ultima versione con `pls update`
 
 ## 🔥 Oh no é tutto rotto 🔥
-
+* Prima non funziona!
+  * Assicurati che `parameters.yml` sia configurato con i valori presenti in `parameters.yml.dist`
 * Kubernetes mi da problemi di permessi!
   * `pls fix`
 * Opzione nucleare
-  * `pls reset` (*NB*: Resetta tutto)
+  * `pls reset` (⚠️ **NB**: Resetta tutto)
