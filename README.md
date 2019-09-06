@@ -53,7 +53,15 @@ In caso tu sia interessato soltanto agli indirizzi a cui é possibile accedere, 
 ## 🔥 Oh no é tutto rotto 🔥
 * Prima non funziona!
   * Assicurati che `parameters.yml` sia configurato con i valori presenti in `parameters.yml.dist`
+* `cURL error 7: Failed to connect to test-*servizio*-service port XXXX: Connection refused (see http://curl.haxx.se/libcurl/c/libcurl-errors.html)`!
+  * `pls add *servizio*`
 * Kubernetes mi da problemi di permessi!
   * `pls fix`
 * Opzione nucleare
   * `pls reset` (⚠️ **NB**: Resetta tutto)
+
+## Problemi da risolvere
+* Rabbit viene tirato su senza venir configurato. Questo vuol dire che i servizi che utilizzano exchange si potrebbero rompere (`NOT_FOUND - no exchange 'entity' in vhost '/'`)
+  * Soluzione: Puó venire risolto creando manualmente le exchanges/queues richieste (`pls open rabbit` e datti da fare 👏👏)
+* Le migration potrebbero non corrispondere se si fa il dump da DB e non si é allineati. 
+  * Soluzione: Apri il tuo client DB e vedi sopra.
