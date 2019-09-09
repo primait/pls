@@ -222,11 +222,11 @@ _refresh_infrastructure() {
 
     cd $kube_dir
 
-    if [[ ! -f "infrastructure.yml" ]]; then
+    if [[ ! -f "infrastructure.yml" ]] || [[ ! -s "infrastructure.yml" ]]; then
         sed  -e "s|{PERSISTENTVOLUMES_DIR}|$PERSISTENTVOLUMES_DIR|" $PLS_DIR/infrastructure.yml.dist > infrastructure.yml
     fi
-
-    kubectl apply -f infrastructure.yml
+    
+    kubectl apply -f $kube_dir/infrastructure.yml
 }
 
 _add() {
