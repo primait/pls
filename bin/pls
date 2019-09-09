@@ -66,6 +66,7 @@ DUMP_DB_PASSWORD=$DUMP_DB_PASSWORD
 
 _help() {
     cat <<HEREDOC
+
 Prima Local Stack
 (more on https://kubernetes.io/docs/reference/kubectl/cheatsheet/)
 
@@ -566,7 +567,7 @@ _main() {
             _kys
             ;;
 
-        ""|help)
+        ""|help|--help|-h)
             _help
             ;;
 
