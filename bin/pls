@@ -278,7 +278,12 @@ _dump() {
     local output
     local db_password
     local should_save
-    
+    local dump_dir
+
+    dump_dir=$PLS_CFG_DIR/dump
+
+    mkdir -p $dump_dir
+
     if [ -z $DUMP_DB_PASSWORD ] ; then
         while [ -z $DUMP_DB_PASSWORD ] ; do
             read -sp "Enter password for $DUMP_DB_USERNAME@$DUMP_DB_HOST: " db_password
@@ -299,7 +304,7 @@ _dump() {
         _info "Using password saved in configuration files..."
     fi
 
-    output=$PLS_CFG_DIR/dump/prima_data.sql
+    output=$dump_dir/prima_data.sql
 
     _info "Dumping data from database 'prima' ($DUMP_DB_USERNAME@$DUMP_DB_HOST) into $output" ;\
     mysqldump prima --single-transaction -h ${DUMP_DB_HOST} -u ${DUMP_DB_USERNAME} --password=$DUMP_DB_PASSWORD \
