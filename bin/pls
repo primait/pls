@@ -10,9 +10,9 @@ _update() {
     _info "Updating script..."
     _info "Saving in $SCRIPT_PATH"
     random_string=$(date +"%s")
-    url="${SCRIPT_URL}"?ran="${random_string}"
-    _info "Fetching script from ${url}"
-    if sudo curl -fsSL ${url} -o "$SCRIPT_PATH"; then
+    url="$SCRIPT_URL"?ran="$random_string"
+    _info "Fetching script from $url"
+    if sudo curl -fsSL $url -o "$SCRIPT_PATH"; then
         sudo chmod +x $SCRIPT_PATH
         _info "Update completed!"
         exit
@@ -75,6 +75,7 @@ usage: pls <command>
 Primo avvio e troubleshooting
     install             Installa pls in locale e configura i vari servizi k8s
     build <services?>   Rebuilda i vari container (alias "update", "refresh", "rebuild")
+    refresh <services?> Ricarica il file kubernetes.yml
     fix                 Sistema i permessi delle cartelle
 
 Database
@@ -116,8 +117,8 @@ _error() {
 _find_pod() {
     if [[ $1 ]]; then
         POD_NAME="$(kubectl get pods | awk '{ print $1 }' | grep $1)"
-        if [[ ${POD_NAME} ]]; then
-            echo ${POD_NAME}
+        if [[ $POD_NAME ]]; then
+            echo $POD_NAME
         else
             _error "No service '$1' found"
             echo
@@ -136,7 +137,7 @@ _find_service_ports() {
 }
 
 _check_requirements() {
-    if [ "${PLS_ALLOW_ROOT:-0}" -ne 1 ] && [ "${EUID}" -eq 0 ] ;
+    if [ "${PLS_ALLOW_ROOT:-0}" -ne 1 ] && [ "$EUID" -eq 0 ] ;
         then _error "Please do not run as root. If you *really* know what you are doing, set the env variable PLS_ALLOW_ROOT=1. (es. 'sudo PLS_ALLOW_ROOT=1 pls start')"
         exit
     fi
@@ -197,7 +198,7 @@ _build() {
         projects="prima peano borat bburago hal9000 roger"
     fi
 
-    cd ${PROJECTS_DIR}
+    cd $PROJECTS_DIR
     for project in $projects
     do
 
@@ -230,20 +231,34 @@ _refresh_infrastructure() {
     kubectl apply -f $kube_dir/infrastructure.yml
 }
 
+_refresh_service() {
+    projects="$@"
+
+    for project in $projects
+    do
+        _remove $project
+        
+        cd $PROJECTS_DIR/$project
+        rm kubernetes.yml
+
+        _add $project
+    done
+}
+
 _add() {
     _refresh_infrastructure
 
     for project in "$@"
     do
         cd $PROJECTS_DIR
-        PROJECT_DIR=${PROJECTS_DIR}/$project
+        PROJECT_DIR=$PROJECTS_DIR/$project
         if [[ ! -d "$PROJECT_DIR" ]]; then
             echo "Project not found locally. Attempting to fetch it from repository..."
             git clone git@github.com:primait/$project.git $PROJECT_DIR
         fi
 
-        cd ${PROJECT_DIR} 
-        if [[ ! -f "${PROJECT_DIR}/kubernetes.yml" ]]; then
+        cd $PROJECT_DIR 
+        if [[ ! -f "$PROJECT_DIR/kubernetes.yml" ]]; then
             echo "kubernetes.yml not found. Generating..."
             sed  -e "s|{HOME}|$HOME|" -e "s|{PROJECTS_HOME}|$PROJECTS_DIR|" kubernetes.yml.dist > kubernetes.yml
         fi
@@ -259,9 +274,9 @@ _remove() {
 
     for project in "$@"
     do
-        PROJECT_DIR=${PROJECTS_DIR}/$project
+        PROJECT_DIR=$PROJECTS_DIR/$project
         if [[ -d "$PROJECT_DIR" ]]; then
-            cd ${PROJECT_DIR} ;\
+            cd $PROJECT_DIR ;\
             kubectl delete -f kubernetes.yml
         else
             _error "$PROJECT_DIR does not exist🤷"
@@ -270,8 +285,8 @@ _remove() {
 }
 
 _fix_k8s_permissions() {
-    sudo chown ${USER}:${USER} ~/.kube/ -R
-    sudo chown ${USER}:${USER} ~/.minikube/ -R
+    sudo chown $USER:$USER ~/.kube/ -R
+    sudo chown $USER:$USER ~/.minikube/ -R
 }
 
 _dump() {
@@ -306,8 +321,11 @@ _dump() {
 
     output=$dump_dir/prima_data.sql
 
+    _info "Dumping table struct from database 'prima' ($DUMP_DB_USERNAME@$DUMP_DB_HOST) into $output" ;\
+    mysqldump prima --single-transaction -h $DUMP_DB_HOST -u $DUMP_DB_USERNAME --password=$DUMP_DB_PASSWORD --no-data > $output
+    
     _info "Dumping data from database 'prima' ($DUMP_DB_USERNAME@$DUMP_DB_HOST) into $output" ;\
-    mysqldump prima --single-transaction -h ${DUMP_DB_HOST} -u ${DUMP_DB_USERNAME} --password=$DUMP_DB_PASSWORD \
+    mysqldump prima --single-transaction -h $DUMP_DB_HOST -u $DUMP_DB_USERNAME --password=$DUMP_DB_PASSWORD \
     bo_operator \
     user_configuration \
     security_apikey \
@@ -332,7 +350,8 @@ _dump() {
     pricer_config \
     pricer_discount \
     pricer_discount_code \
-    pricer_guarantee_formula > $output
+    pricer_guarantee_formula \
+    migration_versions >> $output
 
     _info "Prima data dumped in '$output'. Use it to restore your local database with 'pls restore'."
 
@@ -376,9 +395,9 @@ _restart() {
     for project in "$@"
     do
         POD_NAME=$(_find_pod $project)
-        if [[ ${POD_NAME} ]]; then
+        if [[ $POD_NAME ]]; then
             _info "Restarting $POD_NAME"
-            kubectl delete pod ${POD_NAME}
+            kubectl delete pod $POD_NAME
         fi
     done
 }
@@ -417,29 +436,29 @@ _open() {
 
 _bash() {
     POD_NAME=$(_find_pod $1)
-    if [[ ${POD_NAME} ]]; then
+    if [[ $POD_NAME ]]; then
         _info "Entering $POD_NAME"
         if [[ $2 ]]; then
-            kubectl exec -it ${POD_NAME} --container $1-$2-container -- bash
+            kubectl exec -it $POD_NAME --container $1-$2-container -- bash
         else
-            kubectl exec -it ${POD_NAME} bash
+            kubectl exec -it $POD_NAME bash
         fi
     fi
 }
 
 _logs() {
     POD_NAME=$(_find_pod $1)
-    if [[ ${POD_NAME} ]]; then
+    if [[ $POD_NAME ]]; then
         _info "Following $POD_NAME"
-        kubectl logs -f ${POD_NAME} --all-containers=true
+        kubectl logs -f $POD_NAME --all-containers=true
     fi
 }
 
 _inspect() {
     POD_NAME=$(_find_pod $1)
-    if [[ ${POD_NAME} ]]; then
+    if [[ $POD_NAME ]]; then
         _info "Inspecting $POD_NAME"
-        kubectl describe pod ${POD_NAME}
+        kubectl describe pod $POD_NAME
     fi
 }
 
@@ -478,16 +497,20 @@ _main() {
     COMMAND=$(echo $1 | tr A-Z a-z)
     shift
 
-    if [[ install != ${COMMAND} ]] && ! _has_pls
+    if [[ install != $COMMAND ]] && ! _has_pls
         then _error "'pls' is not installed locally. Pls run 'pls install' first."
         exit
     fi
 
-    case ${COMMAND} in
+    case $COMMAND in
         # Setup/Troubleshooting
 
-        build|rebuild|refresh)
+        build|rebuild)
             _build $@
+            ;;
+
+        refresh)
+            _refresh_service $@
             ;;
 
         install)
