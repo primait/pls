@@ -38,7 +38,7 @@ _load_cfg() {
 
     PROJECTS_DIR=${PROJECTS_DIR:-$(readlink -f $DIR/../..)}
     PERSISTENTVOLUMES_DIR=${PERSISTENTVOLUMES_DIR:-/mnt/k8s-pv}
-    PLS_DIR=${PLS_DIR:-$PROJECTS_DIR/pls}
+    PLS_DIR=${PLS_DIR:-$PROJECTS_DIR/pls}CFG_
     SCRIPT_URL=${SCRIPT_URL:-"https://raw.githubusercontent.com/primait/pls/master/bin/pls"}
     SCRIPT_PATH=${SCRIPT_PATH:-"/usr/local/bin/pls"}
     DUMP_DB_HOST=${DUMP_DB_HOST:-db-prima-aurora-staging.prima.it}
@@ -49,7 +49,7 @@ _load_cfg() {
 _save_cfg() {
     echo """
 PROJECTS_DIR=$PROJECTS_DIR
-PLS_DIR=$PLS_DIR
+PLS_DIR=$PLS_CFG_DIR
 SCRIPT_URL=$SCRIPT_URL
 SCRIPT_PATH=$SCRIPT_PATH
 DUMP_DB_HOST=$DUMP_DB_HOST
@@ -214,16 +214,27 @@ _build() {
     cd -
 }
 
-_add() {
-    cd ${PLS_DIR}
+_refresh_infrastructure() {
+    local kube_dir
+    kube_dir=$PLS_CFG_DIR/kubernetes
+
+    mkdir -p $kube_dir
+
+    cd $kube_dir
 
     if [[ ! -f "infrastructure.yml" ]]; then
-        sed  -e "s|{PERSISTENTVOLUMES_DIR}|$PERSISTENTVOLUMES_DIR|" infrastructure.yml.dist > infrastructure.yml
+        sed  -e "s|{PERSISTENTVOLUMES_DIR}|$PERSISTENTVOLUMES_DIR|" $PLS_DIR/infrastructure.yml.dist > infrastructure.yml
     fi
 
     kubectl apply -f infrastructure.yml
+}
+
+_add() {
+    _refresh_infrastructure
+
     for project in "$@"
     do
+        cd $PROJECTS_DIR
         PROJECT_DIR=${PROJECTS_DIR}/$project
         if [[ ! -d "$PROJECT_DIR" ]]; then
             echo "Project not found locally. Attempting to fetch it from repository..."
@@ -236,13 +247,14 @@ _add() {
             sed  -e "s|{HOME}|$HOME|" -e "s|{PROJECTS_HOME}|$PROJECTS_DIR|" kubernetes.yml.dist > kubernetes.yml
         fi
 
+        _build $project
+
         kubectl apply -f kubernetes.yml
     done
 }
 
 _remove() {
-    cd ${PLS_CFG_DIR}/kubernetes ;\
-    kubectl apply -f infrastructure.yml
+    _refresh_infrastructure
 
     for project in "$@"
     do
