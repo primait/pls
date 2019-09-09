@@ -30,7 +30,6 @@ In caso tu abbia modificato il container Docker, `pls rebuild *nome_servizio*`
   * Prima
     * `app/config/parameters.yml`
 
-
 ## Accedere a un servizio
 
 A parte alcune eccezioni (Borat), Kubernetes assegna a ogni servizio una porta random in range 30000~3xxxx.
@@ -50,9 +49,21 @@ In caso tu sia interessato soltanto agli indirizzi a cui é possibile accedere, 
 
 É possibile aggiornare `pls` all'ultima versione con `pls update`
 
-## 🔥 Oh no é tutto rotto 🔥
-* Prima non funziona!
-  * Assicurati che `parameters.yml` sia configurato con i valori presenti in `parameters.yml.dist`
+# Avviare il progetto Prima 
+
+* `pls add prima`
+* `pls dump` 
+  * Per ottenere la password 
+    * configura AWS in locale
+    * clona il repo di Artemide
+    * `biscuit get -f artemide/configs/secrets/common.yml common_staging_db_mysql_prima`
+* `pls restore`
+* Copia il file `app/config/parameters.yml.dist` in `app/config/parameters.yml`
+  * É necessario comunque modificare alcuni valori in `parameters.yml`. Troverai istruzioni al suo interno.
+
+
+# 💣 Troubleshooting
+ 
 * `cURL error 7: Failed to connect to test-*servizio*-service port XXXX: Connection refused (see http://curl.haxx.se/libcurl/c/libcurl-errors.html)`!
   * `pls add *servizio*`
 * Kubernetes mi da problemi di permessi!
@@ -60,8 +71,10 @@ In caso tu sia interessato soltanto agli indirizzi a cui é possibile accedere, 
 * Opzione nucleare
   * `pls reset` (⚠️ **NB**: Resetta tutto)
 
-## Problemi da risolvere
-* Rabbit viene tirato su senza venir configurato. Questo vuol dire che i servizi che utilizzano exchange si potrebbero rompere (`NOT_FOUND - no exchange 'entity' in vhost '/'`)
+# Problemi da risolvere
+
+[ ] Rabbit viene tirato su senza venir configurato. Questo vuol dire che i servizi che utilizzano exchange si potrebbero rompere (`NOT_FOUND - no exchange 'entity' in vhost '/'`)
   * Soluzione: Puó venire risolto creando manualmente le exchanges/queues richieste (`pls open rabbit` e datti da fare 👏👏)
-* Le migration potrebbero non corrispondere se si fa il dump da DB e non si é allineati. 
+[ ] Le migration potrebbero non corrispondere se si fa il dump da DB e non si é allineati. 
   * Soluzione: Apri il tuo client DB e vedi sopra.
+
