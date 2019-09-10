@@ -199,6 +199,7 @@ _build() {
     fi
 
     cd $PROJECTS_DIR
+
     for project in $projects
     do
 
@@ -223,10 +224,7 @@ _refresh_infrastructure() {
     mkdir -p $kube_dir
 
     cd $kube_dir
-
-    if [[ ! -f "infrastructure.yml" ]] || [[ ! -s "infrastructure.yml" ]]; then
-        sed  -e "s|{PERSISTENTVOLUMES_DIR}|$PERSISTENTVOLUMES_DIR|" $PLS_DIR/infrastructure.yml.dist > infrastructure.yml
-    fi
+    sed  -e "s|{PERSISTENTVOLUMES_DIR}|$PERSISTENTVOLUMES_DIR|" $PLS_DIR/infrastructure.yml.dist > infrastructure.yml
     
     kubectl apply -f $kube_dir/infrastructure.yml
 }
@@ -349,11 +347,16 @@ _dump() {
     place_zone \
     pricer_config \
     pricer_discount \
-    pricer_discount_code \
+    pricer_discount_code \allow
     pricer_guarantee_formula \
     migration_versions >> $output
 
-    _info "Prima data dumped in '$output'. Use it to restore your local database with 'pls restore'."
+    # Overwrite api keys to default values
+    echo "
+    UPDATE prima.security_apikey SET apikey = 'frontendapikey' WHERE operator_id = 3;
+    UPDATE prima.security_apikey SET apikey = 'backofficeapikey' WHERE operator_id = 4;" >> $output
+
+    _info "Prima data dumped in '$output'. Now you can restore your local database with 'pls restore'."
 
     # printf "Dump borat data:\n" ;
     # borat_data.sql
@@ -369,7 +372,7 @@ _restore() {
 
 _status() {
     printf "Deployments:\n" ;\
-    kubectl get deployments --all-namespaces ;\
+    kubectl get deployments --all-namespaces ;\4
     
     printf "\nServices:\n" ;\
     kubectl get services
