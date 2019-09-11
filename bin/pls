@@ -23,8 +23,8 @@ _update() {
 
 readonly DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 readonly USER="$(whoami)"
-readonly PLS_CFG_DIR=~/.pls
-readonly PLS_CFG=$PLS_CFG_DIR/config.rc
+PLS_CFG_DIR=~/.pls
+PLS_CFG=$PLS_CFG_DIR/config.rc
 
 ###
 # Config
@@ -237,7 +237,7 @@ _refresh_service() {
     do
         _remove $project
         
-        cd $PROJECTS_DIR/$project
+        cd $PROJECTS_DIR/$projectUsec
         rm kubernetes.yml
 
         _add $project
@@ -348,7 +348,7 @@ _dump() {
     place_zone \
     pricer_config \
     pricer_discount \
-    pricer_discount_code \allow
+    pricer_discount_code \
     pricer_guarantee_formula \
     migration_versions >> $output
 
