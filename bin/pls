@@ -372,7 +372,7 @@ _restore() {
 
 _status() {
     printf "Deployments:\n" ;\
-    kubectl get deployments --all-namespaces ;\4
+    kubectl get deployments --all-namespaces ;\
     
     printf "\nServices:\n" ;\
     kubectl get services
