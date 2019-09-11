@@ -2,6 +2,7 @@
 
 ## Prima installazione
 
+* Installa minikube seguendo [questa guida](https://github.com/primait/board/wiki/Kubernetes#installazione-minikube-per-linux)
 * Clona questo repository 
   * `git clone git@github.com:primait/pls.git`
 * Installa `pls` in locale con
@@ -11,7 +12,7 @@
 
 ## Start/stop
 
-Avvia/ferma lo stack Kubernetes e i servizi associati con
+Avvia/ferma lo stack Kubernetes e i servizi associati con:
 
 * `pls start`
 * `pls stop`
@@ -40,16 +41,21 @@ In caso tu sia interessato soltanto agli indirizzi a cui é possibile accedere, 
 
 ## Debugging 
 
-* Per accedere in _bash_, `pls bash *nome_servizio*` 
-* Per leggere i log, `pls log *nome_servizio*`
-* Per visionare lo status dettagliato dei container, `pls inspect *nome_servizio*`
-* Per visionare lo status generale di Kubernetes, `pls status`
+* Per accedere in _bash_
+  * `pls bash *nome_servizio*` 
+  * 🔎 _ProTip_: Se disponibili piú container, verrá aperto il primo che capita. Puoi entrare in un container specifico con `pls bash *nome_servizio* *nome_container*` (ex. `pls bash prima nginx`)
+* Per leggere i log
+  * `pls log *nome_servizio*`
+* Per visionare lo status dettagliato di un container
+  * `pls inspect *nome_servizio*`
+* Per visionare lo status generale di Kubernetes
+  * `pls status`
 
 ## Aggiornamento
 
 É possibile aggiornare `pls` all'ultima versione con `pls update`
 
-# Avviare il progetto Prima 
+## Avviare il progetto Prima 
 
 * `pls add prima`
 * `pls dump` 
@@ -61,20 +67,13 @@ In caso tu sia interessato soltanto agli indirizzi a cui é possibile accedere, 
 * Copia il file `app/config/parameters.yml.dist` in `app/config/parameters.yml`
   * É necessario comunque modificare alcuni valori in `parameters.yml`. Troverai istruzioni al suo interno.
 
-
-# 💣 Troubleshooting
+## 🆘 Troubleshooting
  
 * `cURL error 7: Failed to connect to test-*servizio*-service port XXXX: Connection refused (see http://curl.haxx.se/libcurl/c/libcurl-errors.html)`!
   * `pls add *servizio*`
+* `pls dump` mi ci manda con `mysqldump: command: not found`!
+  * `sudo apt-get install mysql-client`
 * Kubernetes mi da problemi di permessi!
   * `pls fix`
-* Opzione nucleare
+* ☢️ Opzione nucleare ☢️
   * `pls reset` (⚠️ **NB**: Resetta tutto)
-
-# Problemi da risolvere
-
-[ ] Rabbit viene tirato su senza venir configurato. Questo vuol dire che i servizi che utilizzano exchange si potrebbero rompere (`NOT_FOUND - no exchange 'entity' in vhost '/'`)
-  * Soluzione: Puó venire risolto creando manualmente le exchanges/queues richieste (`pls open rabbit` e datti da fare 👏👏)
-[ ] Le migration potrebbero non corrispondere se si fa il dump da DB e non si é allineati. 
-  * Soluzione: Apri il tuo client DB e vedi sopra.
-

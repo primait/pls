@@ -144,7 +144,7 @@ _check_requirements() {
     fi
 
     if ! _has_minikube
-        then _error "'minikube' is not installed. See: https://github.com/primait/board/wiki/Kubernetes-experiments"
+        then _error "'minikube' is not installed. See: https://github.com/primait/board/wiki/Kubernetes"
         exit
     fi
 }
