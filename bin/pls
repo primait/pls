@@ -287,6 +287,10 @@ _add() {
             _build $project
 
             kubectl apply -f kubernetes.yml
+
+            echo ""
+
+            _urls $project
         done
     else
         _error "Usage: pls add *services"
@@ -590,7 +594,7 @@ _reset() {
 
 _urls() {
     if [ ! -z $1 ]; then
-        echo "$1 exposed at:"
+        echo "$1 available at:"
         _find_urls $1
     else
         _error "Usage: pls url *service*"
