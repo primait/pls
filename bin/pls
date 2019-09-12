@@ -258,7 +258,7 @@ _refresh_infrastructure() {
 
 _refresh_service() {
 
-    if [ ! -z $@ ]; then
+    if [[ ! -z "$@" ]]; then
         projects="$@"
         for project in $projects
         do
@@ -277,7 +277,7 @@ _refresh_service() {
 _add() {
     _refresh_infrastructure
 
-    if [ ! -z $@ ]; then
+    if [[ ! -z "$@" ]]; then
         for project in "$@"
         do
             cd $PROJECTS_DIR
@@ -290,7 +290,12 @@ _add() {
             cd $PROJECT_DIR 
             if [[ ! -f "$PROJECT_DIR/kubernetes.yml" ]]; then
                 echo "kubernetes.yml not found. Generating..."
-                sed  -e "s|{HOME}|$HOME|" -e "s|{PROJECTS_HOME}|$PROJECTS_DIR|" kubernetes.yml.dist > kubernetes.yml
+                if [[ -f "$PROJECT_DIR/kubernetes.yml.dist" ]]; then
+                    sed  -e "s|{HOME}|$HOME|" -e "s|{PROJECTS_HOME}|$PROJECTS_DIR|" kubernetes.yml.dist > kubernetes.yml
+                else
+                    _error "kubernetes.yml.dist not found. Does the project support kubernetes? Are you on master? Have you pulled the latest version?"
+                    continue
+                fi
             fi
 
             _build $project
@@ -310,7 +315,7 @@ _add() {
 _remove() {
     _refresh_infrastructure
 
-    if [ ! -z $@ ]; then
+    if [[ ! -z "$@" ]]; then
         for project in "$@"
         do
             PROJECT_DIR=$PROJECTS_DIR/$project
@@ -449,7 +454,7 @@ _start() {
 }
 
 _restart() {
-    if [ ! -z $@ ]; then
+    if [[ ! -z "$@" ]]; then
         for project in "$@"
         do
             POD_NAME=$(_find_pod $project)
