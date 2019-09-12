@@ -9,6 +9,7 @@
   * `cd pls`
   * `./bin/pls install`
 * Segui le istruzioni
+* Aggiungi prima allo stack [seguendo le istruzioni](#avviare-il-progetto-prima)
 
 ## Start/stop
 
@@ -65,7 +66,7 @@ In caso tu sia interessato soltanto agli indirizzi a cui é possibile accedere, 
     * `biscuit get -f artemide/configs/secrets/common.yml common_staging_db_mysql_prima`
 * `pls restore`
 * Copia il file `app/config/parameters.yml.dist` in `app/config/parameters.yml`
-  * Se utilizzavi lo stack con docker, rinomina prima il file `parameters.yml` in `parameters.yml.backup`
+  * Se utilizzavi lo stack con docker, rinomina il file `parameters.yml` in `parameters.yml.backup`
 
 ## 🆘 Troubleshooting
 * Prima non funziona!
