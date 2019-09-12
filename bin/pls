@@ -115,17 +115,7 @@ _error() {
 }
 
 _find_pod() {
-    if [[ $1 ]]; then
-        POD_NAME="$(kubectl get pods | awk '{ print $1 }' | grep $1)"
-        if [[ $POD_NAME ]]; then
-            echo $POD_NAME
-        else
-            _error "No service '$1' found"
-            echo
-        fi
-    else 
-        _error "No service specified"
-    fi
+    echo "$(kubectl get pods | awk '{ print $1 }' | grep $1)"
 }
 
 _find_pod_containers() {
@@ -192,7 +182,9 @@ _install() {
 
 Everything should be set up and running. Now you can add services with 'pls add *service*'. Try with 'pls add prima'! 👏👏
 
-JUST ONE MORE THING: You should add in your /etc/hosts file the following line
+⬇️ PLS READ ⬇
+
+Just one more thing: you should add in your /etc/hosts file the following line
 
 127.0.0.1   prima.local
 
@@ -256,56 +248,68 @@ _refresh_infrastructure() {
 }
 
 _refresh_service() {
-    projects="$@"
 
-    for project in $projects
-    do
-        _remove $project
-        
-        cd $PROJECTS_DIR/$project
-        rm kubernetes.yml
+    if [ ! -z $@ ]; then
+        projects="$@"
+        for project in $projects
+        do
+            _remove $project
+            
+            cd $PROJECTS_DIR/$project
+            rm kubernetes.yml
 
-        _add $project
-    done
+            _add $project
+        done
+    else
+        _error "Usage: pls refresh *services"
+    fi
 }
 
 _add() {
     _refresh_infrastructure
 
-    for project in "$@"
-    do
-        cd $PROJECTS_DIR
-        PROJECT_DIR=$PROJECTS_DIR/$project
-        if [[ ! -d "$PROJECT_DIR" ]]; then
-            echo "Project not found locally. Attempting to fetch it from repository..."
-            git clone git@github.com:primait/$project.git $PROJECT_DIR
-        fi
+    if [ ! -z $@ ]; then
+        for project in "$@"
+        do
+            cd $PROJECTS_DIR
+            PROJECT_DIR=$PROJECTS_DIR/$project
+            if [[ ! -d "$PROJECT_DIR" ]]; then
+                echo "Project not found locally. Attempting to fetch it from repository..."
+                git clone git@github.com:primait/$project.git $PROJECT_DIR
+            fi
 
-        cd $PROJECT_DIR 
-        if [[ ! -f "$PROJECT_DIR/kubernetes.yml" ]]; then
-            echo "kubernetes.yml not found. Generating..."
-            sed  -e "s|{HOME}|$HOME|" -e "s|{PROJECTS_HOME}|$PROJECTS_DIR|" kubernetes.yml.dist > kubernetes.yml
-        fi
+            cd $PROJECT_DIR 
+            if [[ ! -f "$PROJECT_DIR/kubernetes.yml" ]]; then
+                echo "kubernetes.yml not found. Generating..."
+                sed  -e "s|{HOME}|$HOME|" -e "s|{PROJECTS_HOME}|$PROJECTS_DIR|" kubernetes.yml.dist > kubernetes.yml
+            fi
 
-        _build $project
+            _build $project
 
-        kubectl apply -f kubernetes.yml
-    done
+            kubectl apply -f kubernetes.yml
+        done
+    else
+        _error "Usage: pls add *services"
+    fi
 }
 
 _remove() {
     _refresh_infrastructure
 
-    for project in "$@"
-    do
-        PROJECT_DIR=$PROJECTS_DIR/$project
-        if [[ -d "$PROJECT_DIR" ]]; then
-            cd $PROJECT_DIR ;\
-            kubectl delete -f kubernetes.yml
-        else
-            _error "$PROJECT_DIR does not exist🤷"
-        fi
-    done
+    if [ ! -z $@ ]; then
+        for project in "$@"
+        do
+            PROJECT_DIR=$PROJECTS_DIR/$project
+            if [[ -d "$PROJECT_DIR" ]]; then
+                cd $PROJECT_DIR ;\
+                kubectl delete -f kubernetes.yml
+            else
+                _error "$PROJECT_DIR does not exist🤷"
+            fi
+        done
+    else
+        _error "Usage: pls remove *services"
+    fi
 }
 
 _fix_k8s_permissions() {
@@ -431,14 +435,20 @@ _start() {
 }
 
 _restart() {
-    for project in "$@"
-    do
-        POD_NAME=$(_find_pod $project)
-        if [[ $POD_NAME ]]; then
-            _info "Restarting $POD_NAME"
-            kubectl delete pod $POD_NAME
-        fi
-    done
+    if [ ! -z $@ ]; then
+        for project in "$@"
+        do
+            POD_NAME=$(_find_pod $project)
+            if [ ! -z "${POD_NAME}" ]; then
+                _info "Restarting $POD_NAME"
+                kubectl delete pod $POD_NAME
+            else
+                _error "Service not found: $project"
+            fi
+        done
+    else
+        _error "Usage: prima restart *services*"
+    fi
 }
 
 _open() {
@@ -446,41 +456,44 @@ _open() {
     local url_cnt
     local url_chosen
 
-    urls=$(_find_urls $1)
-    url_cnt=0
-    for url in $urls
-    do
-        url_cnt=$(($url_cnt+1))
-    done
-
-
-    if [[ ${url_cnt} -gt 1 ]]; then
-        echo "Multiple URLs detected. Which one should I open?"
-
-        while [ -z $url_chosen ] 
+    if [ ! -z $1 ]; then
+        urls=$(_find_urls $1)
+        url_cnt=0
+        for url in $urls
         do
-            select url in $urls;
-            do
-                url_chosen=$url
-                break
-            done
-
-            if [ -z $url_chosen ]
-            then
-                _warn "Please choose a valid option"
-            fi
+            url_cnt=$(($url_cnt+1))
         done
-    else
-        url=$urls
-    fi
 
-    _info "Opening $url"
-        
-    case "$OSTYPE" in
-        darwin*) open $url ;;
-        linux*) xdg-open $url ;;
-        *) echo "Unknown OS $OSTYPE" ;;
-    esac
+        if [[ ${url_cnt} -gt 1 ]]; then
+            echo "Multiple URLs detected. Which one should I open?"
+
+            while [ -z $url_chosen ] 
+            do
+                select url in $urls;
+                do
+                    url_chosen=$url
+                    break
+                done
+
+                if [ -z $url_chosen ]
+                then
+                    _warn "Please choose a valid option"
+                fi
+            done
+        else
+            url=$urls
+        fi
+
+        _info "Opening $url"
+            
+        case "$OSTYPE" in
+            darwin*) open $url ;;
+            linux*) xdg-open $url ;;
+            *) echo "Unknown OS $OSTYPE" ;;
+        esac
+    else
+        _error "Usage: pls open *service*"
+    fi
 }
 
 _bash() {
@@ -488,59 +501,78 @@ _bash() {
     local container
     local container_chosen
 
-    POD_NAME=$(_find_pod $1)
-    if [[ $POD_NAME ]]; then
-        _info "Entering pod $POD_NAME"
+    if [ ! -z $1 ]; then
+        POD_NAME=$(_find_pod $1)
+        if [ ! -z "${POD_NAME}" ]; then
+            _info "Entering pod $POD_NAME"
 
-        if [[ $2 ]]; then
-            container=$1-$2-containers
-        else
-            containers=$(_find_pod_containers $POD_NAME)
-            container_cnt=0
-            for container in $containers
-            do
-                container_cnt=$(($container_cnt+1))
-            done
-
-            if [[ ${container_cnt} -gt 1 ]]; then
-                echo "Multiple pod containers detected. Which one should I enter?"
-
-                while [ -z $container_chosen ] 
-                do
-                    select container in $containers;
-                    do
-                        container_chosen=$container
-                        break
-                    done
-
-                    if [ -z $container_chosen ]
-                    then
-                        _warn "Please choose a valid option"
-                    fi
-                done
+            if [[ $2 ]]; then
+                container_chosen=$1-$2-container
             else
-                container_chosen=$containers
-            fi
-        fi
+                containers=$(_find_pod_containers $POD_NAME)
+                container_cnt=0
+                for container in $containers
+                do
+                    container_cnt=$(($container_cnt+1))
+                done
 
-        echo "Entering container $container_chosen"
-        kubectl exec -it $POD_NAME --container $container_chosen -- bash
+                if [[ ${container_cnt} -gt 1 ]]; then
+                    echo "Multiple pod containers detected. Which one should I enter?"
+
+                    while [ -z $container_chosen ] 
+                    do
+                        select container in $containers;
+                        do
+                            container_chosen=$container
+                            break
+                        done
+
+                        if [ -z $container_chosen ]
+                        then
+                            _warn "Please choose a valid option"
+                        fi
+                    done
+                else
+                    container_chosen=$containers
+                fi
+            fi
+
+            echo "Entering container $container_chosen"
+            kubectl exec -it $POD_NAME --container $container_chosen -- bash
+        else
+            _error "Service not found: $1"
+        fi
+    else
+        _error "Usage: pls bash *service* *container?*"
     fi
 }
 
 _logs() {
-    POD_NAME=$(_find_pod $1)
-    if [[ $POD_NAME ]]; then
-        _info "Following $POD_NAME"
-        kubectl logs -f $POD_NAME --all-containers=true
+    if [ ! -z $1 ]; then
+        POD_NAME=$(_find_pod $1)
+        if [ ! -z "${POD_NAME}" ]; then
+            _info "Following $POD_NAME"
+            kubectl logs -f $POD_NAME --all-containers=true
+        else
+            _error "Service not found: $1"
+        fi
+    else
+        _error "Usage: pls log *service*"
     fi
 }
 
 _inspect() {
-    POD_NAME=$(_find_pod $1)
-    if [[ $POD_NAME ]]; then
-        _info "Inspecting $POD_NAME"
-        kubectl describe pod $POD_NAME
+    if [ ! -z $1 ]; then
+        POD_NAME=$(_find_pod $1)
+        echo $POD_NAME
+        if [ ! -z "${POD_NAME}" ]; then
+            _info "Inspecting $POD_NAME"
+            kubectl describe pod $POD_NAME
+        else
+            _error "Service not found: $1"
+        fi
+    else
+        _error "Usage: pls inspect *service*"
     fi
 }
 
@@ -557,8 +589,12 @@ _reset() {
 }
 
 _urls() {
-    echo "$1 exposed at:"
-    _find_urls $1
+    if [ ! -z $1 ]; then
+        echo "$1 exposed at:"
+        _find_urls $1
+    else
+        _error "Usage: pls url *service*"
+    fi
 }
 
 _kys() {
