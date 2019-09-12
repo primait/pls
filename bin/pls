@@ -202,16 +202,12 @@ _setup() {
     _info "Creating configuration directory '$PLS_CFG_DIR'"
     mkdir -p $PLS_CFG_DIR
 
-    while [ -z $projects_dir ] || [ ! -d $projects_dir ]; do
-        read -p "Where are your projects located? [$PROJECTS_DIR]: " projects_dir
-        PROJECTS_DIR=${projects_dir:-$PROJECTS_DIR}
-    done
-
-    while [ -z $persistentvolumes_dir ] || [ ! -d $persistentvolumes_dir ]; do
-        read -p "Where should the persistent volumes be saved? [$PERSISTENTVOLUMES_DIR]: " persistentvolumes_dir
-        PERSISTENTVOLUMES_DIR=${persistentvolumes_dir:-$PERSISTENTVOLUMES_DIR}
-    done
-
+    read -p "Where are your projects located? [$PROJECTS_DIR]: " projects_dir
+    PROJECTS_DIR=${projects_dir:-$PROJECTS_DIR}
+    
+    read -p "Where should the persistent volumes be saved? [$PERSISTENTVOLUMES_DIR]: " persistentvolumes_dir
+    PERSISTENTVOLUMES_DIR=${persistentvolumes_dir:-$PERSISTENTVOLUMES_DIR}
+    
     _save_cfg
     _load_cfg
 }
