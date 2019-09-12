@@ -65,10 +65,11 @@ In caso tu sia interessato soltanto agli indirizzi a cui é possibile accedere, 
     * `biscuit get -f artemide/configs/secrets/common.yml common_staging_db_mysql_prima`
 * `pls restore`
 * Copia il file `app/config/parameters.yml.dist` in `app/config/parameters.yml`
-  * É necessario comunque modificare alcuni valori in `parameters.yml`. Troverai istruzioni al suo interno.
+  * Se utilizzavi lo stack con docker, rinomina prima il file `parameters.yml` in `parameters.yml.backup`
 
 ## 🆘 Troubleshooting
- 
+* Prima non funziona!
+  * Assicurati che il file `parameters.yml` sia aggiornato con i valori presenti in `parameters.yml.dist`
 * `cURL error 7: Failed to connect to test-*servizio*-service port XXXX: Connection refused (see http://curl.haxx.se/libcurl/c/libcurl-errors.html)`!
   * `pls add *servizio*`
 * `pls dump` mi ci manda con `mysqldump: command: not found`!
