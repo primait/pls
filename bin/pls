@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# prima
 # 
-# CLI utility for a local Prima local stack
+# Prima Local Stack
 
-# !!!KEEP THIS ON TOP!!!
-_update() {
+# !!! KEEP THIS FUNCTION ON TOP !!!
+_update_script() {
     local random_string
     local url
     _info "Updating script..."
@@ -23,47 +22,6 @@ _update() {
 
 readonly DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 readonly USER="$(whoami)"
-PLS_CFG_DIR=~/.pls
-PLS_CFG=$PLS_CFG_DIR/config.rc
-
-###
-# Config
-###
-
-_load_cfg() {
-    if [ -f $PLS_CFG ] ; then 
-        _info "Loading configuration from $PLS_CFG"
-        source $PLS_CFG
-    fi
-
-    PROJECTS_DIR=${PROJECTS_DIR:-$(readlink -f $DIR/../..)}
-    PERSISTENTVOLUMES_DIR=${PERSISTENTVOLUMES_DIR:-/mnt/k8s-pv}
-    PLS_DIR=${PLS_DIR:-$PROJECTS_DIR/pls}
-    SCRIPT_URL=${SCRIPT_URL:-"https://raw.githubusercontent.com/primait/pls/master/bin/pls"}
-    SCRIPT_PATH=${SCRIPT_PATH:-"/usr/local/bin/pls"}
-    DUMP_DB_HOST=${DUMP_DB_HOST:-db-prima-aurora-staging.prima.it}
-    DUMP_DB_USERNAME=${DUMP_DB_USERNAME:-prima}
-    DUMP_DB_PASSWORD=${DUMP_DB_PASSWORD:-}
-}
-
-_save_cfg() {
-    echo """
-PROJECTS_DIR=$PROJECTS_DIR
-PLS_CFG_DIR=$PLS_CFG_DIR
-PLS_DIR=$PLS_DIR
-SCRIPT_URL=$SCRIPT_URL
-SCRIPT_PATH=$SCRIPT_PATH
-DUMP_DB_HOST=$DUMP_DB_HOST
-DUMP_DB_USERNAME=$DUMP_DB_USERNAME
-DUMP_DB_PASSWORD=$DUMP_DB_PASSWORD
-""" > $PLS_CFG
-
-    _info "Configuration updated!"
-}
-
-###
-# Utils
-###
 
 _help() {
     cat <<HEREDOC
@@ -103,11 +61,53 @@ Altro
 HEREDOC
 }
 
+###
+# Config
+###
+
+PLS_CFG_DIR=~/.pls
+PLS_CFG=$PLS_CFG_DIR/config.rc
+
+_load_cfg() {
+    if [ -f $PLS_CFG ] ; then 
+        _info "Loading configuration from $PLS_CFG"
+        source $PLS_CFG
+    fi
+
+    PROJECTS_DIR=${PROJECTS_DIR:-$(readlink -f $DIR/../..)}
+    PERSISTENTVOLUMES_DIR=${PERSISTENTVOLUMES_DIR:-/mnt/k8s-pv}
+    PLS_DIR=${PLS_DIR:-$PROJECTS_DIR/pls}
+    SCRIPT_URL=${SCRIPT_URL:-"https://raw.githubusercontent.com/primait/pls/master/bin/pls"}
+    SCRIPT_PATH=${SCRIPT_PATH:-"/usr/local/bin/pls"}
+    DUMP_DB_HOST=${DUMP_DB_HOST:-db-prima-aurora-staging.prima.it}
+    DUMP_DB_USERNAME=${DUMP_DB_USERNAME:-prima}
+    DUMP_DB_PASSWORD=${DUMP_DB_PASSWORD:-}
+}
+
+_save_cfg() {
+    echo """
+PROJECTS_DIR=$PROJECTS_DIR
+PLS_CFG_DIR=$PLS_CFG_DIR
+PLS_DIR=$PLS_DIR
+SCRIPT_URL=$SCRIPT_URL
+SCRIPT_PATH=$SCRIPT_PATH
+DUMP_DB_HOST=$DUMP_DB_HOST
+DUMP_DB_USERNAME=$DUMP_DB_USERNAME
+DUMP_DB_PASSWORD=$DUMP_DB_PASSWORD
+""" > $PLS_CFG
+
+    _info "Configuration updated!"
+}
+
+###
+# Utils
+###
+
 _info() {
     echo "💬  $0: $1"
 }
 
-_warning() {
+_warn() {
     echo "⚠️  $0: $1"
 }
 
@@ -169,11 +169,20 @@ _has_systemd_resolved() {
 
 _install() {
     _setup
-    _update
     _start
     _build
     _fix_k8s_permissions
-    _info "Everything should be set up and running. Now you can add services with 'pls add *service*'. Try with 'pls add prima'! 👏👏"
+    _info """
+
+Everything should be set up and running. Now you can add services with 'pls add *service*'. Try with 'pls add prima'! 👏👏
+
+JUST ONE MORE THING: You should add in your /etc/hosts file the following line
+
+127.0.0.1   prima.local
+
+Note that if you are using another machine you should change 127.0.0.1 with its public IP instead.
+
+⬆️ PLS READ ⬆️"
 }
 
 _setup() {
@@ -390,7 +399,7 @@ _start() {
     if _has_systemd_resolved; then
         sudo minikube start --apiserver-ips=127.0.0.1 --apiserver-name=localhost --vm-driver=none --extra-config=kubelet.resolv-conf=/run/systemd/resolve/resolv.conf
     else
-        _warning "systemd-resolved not detected"
+        _warn "systemd-resolved not detected"
         sudo minikube start --apiserver-ips=127.0.0.1 --apiserver-name=localhost --vm-driver=none
     fi
 }
@@ -425,7 +434,7 @@ _open() {
     fi
 
     if [[ $port ]]; then
-        url="http://prima:$port/"
+        url="http://prima.local:$port/"
         _info "Opening $url"
           
         case "$OSTYPE" in
@@ -474,7 +483,7 @@ _reset() {
     if [[ "yes" == $(echo $proceed | tr A-Z a-z) ]] ; then
         kubectl delete deployment --all
     else
-        _warning "Reset cancelled."
+        _warn "Reset cancelled."
     fi
 }
 
@@ -522,7 +531,7 @@ _main() {
             ;;
 
         update)
-            _update
+            _update_script
             ;;
 
         fix)
