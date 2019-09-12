@@ -19,7 +19,7 @@ Avvia/ferma lo stack Kubernetes e i servizi associati con:
 
 ## Gestione servizi
 
-* Aggiungi con `pls add *nome_servizio*`
+* Aggiungi con `pls add *nome_servizio*` (⚠️ **NB**: Assicurati che sei su branch `master` e di aver fatto `git pull`!)
 * Rimuovi con `pls rm *nome_servizio*`
 * Riavvia con `pls restart *nome_servizio*`
 
