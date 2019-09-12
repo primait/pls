@@ -2,7 +2,7 @@
 # 
 # Prima Local Stack
 
-# !!! KEEP THIS FUNCTION ON TOP !!!
+# !!! KEEP THESE FUNCTIONS ON TOP !!!
 _update_script() {
     local random_string
     local url
@@ -17,6 +17,11 @@ _update_script() {
     else
         _error "There was a problem during the update."
     fi
+}
+
+_update_script_and_exit() {
+    _update_script
+    exit
 }
 
 readonly DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
@@ -290,6 +295,7 @@ _add() {
 
             _build $project
 
+            cd $PROJECT_DIR 
             kubectl apply -f kubernetes.yml
 
             echo ""
@@ -641,7 +647,7 @@ _main() {
             ;;
 
         update)
-            _update_script
+            _update_script_and_exit
             ;;
 
         fix)
