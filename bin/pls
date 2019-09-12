@@ -33,8 +33,8 @@ usage: pls <command>
 
 Primo avvio e troubleshooting
     install             Installa pls in locale e configura i vari servizi k8s
-    build <services?>   Rebuilda i vari container (alias "update", "refresh", "rebuild")
-    refresh <services?> Ricarica il file kubernetes.yml
+    build <services>   Rebuilda i vari container (alias "update", "refresh", "rebuild")
+    refresh <services> Ricarica il file kubernetes.yml
     fix                 Sistema i permessi delle cartelle
 
 Database
@@ -44,8 +44,7 @@ Database
 Gestione dell'ambiente locale
     stop                Ferma l'ambiente locale
     start               Avvia l'ambiente locale
-    status              Stampa lo status dei servizi (alias "ps")
-    services            Stampa la lista dei servizi (alias "ls", "ss")
+    status              Stampa lo status dei servizi (alias "ps", "ss", "ls") 
     reset               Reset completo dell'ambiente locale
 
 Gestione dei servizi
@@ -129,12 +128,25 @@ _find_pod() {
     fi
 }
 
+_find_pod_containers() {
+    local pod
+    pod=$(_find_pod $1)
+    echo "$(kubectl describe pod $pod | grep "container:" | grep -oP "(.*)-container" --color=never)"
+}
+
 _find_service() {
     echo "$(kubectl get services | grep $1)"
 }
 
 _find_service_ports() {
     echo "$(_find_service $1 | grep -oP ':[0-9]+\/' | grep -oP '[0-9]+')"
+}
+
+_find_urls() {
+    for port in $(_find_service_ports $1)
+    do
+        echo "http://prima:$port"
+    done
 }
 
 ###
@@ -250,7 +262,7 @@ _refresh_service() {
     do
         _remove $project
         
-        cd $PROJECTS_DIR/$projectUsec
+        cd $PROJECTS_DIR/$project
         rm kubernetes.yml
 
         _add $project
@@ -384,15 +396,25 @@ _restore() {
     # borat_data.sql
 }
 
-_status() {
-    printf "Deployments:\n" ;\
-    kubectl get deployments --all-namespaces ;\
-    
+_deployments() {
+    printf "\nDeployments:\n" ;\
+    kubectl get deployments --all-namespaces
+}
+
+_services() {
     printf "\nServices:\n" ;\
     kubectl get services
-    
+}
+
+_pods() {
     printf "\nPods:\n" ;\
     kubectl get pods
+}
+
+_status() {
+    _deployments
+    _services
+    _pods
 }
 
 _stop() {
@@ -420,46 +442,89 @@ _restart() {
 }
 
 _open() {
-    local ports
-    local port
-    local url
+    local urls
+    local url_cnt
+    local url_chosen
 
-    ports=$(_find_service_ports $1)
-    if [[ ${#ports} -gt 5 ]]; then
-        echo "Multiple service ports detected. Which one should I open?"
+    urls=$(_find_urls $1)
+    url_cnt=0
+    for url in $urls
+    do
+        url_cnt=$(($url_cnt+1))
+    done
 
-        select port in $ports;
+
+    if [[ ${url_cnt} -gt 1 ]]; then
+        echo "Multiple URLs detected. Which one should I open?"
+
+        while [ -z $url_chosen ] 
         do
-            port=$port
-            break
+            select url in $urls;
+            do
+                url_chosen=$url
+                break
+            done
+
+            if [ -z $url_chosen ]
+            then
+                _warn "Please choose a valid option"
+            fi
         done
     else
-        port=$ports
+        url=$urls
     fi
 
-    if [[ $port ]]; then
-        url="http://prima.local:$port/"
-        _info "Opening $url"
-          
-        case "$OSTYPE" in
-            darwin*) open $url ;;
-            linux*) xdg-open $url ;;
-            *) echo "Unknown OS $OSTYPE" ;;
-        esac
-    else
-        _error "$1 not found. Try to see if it's listed with 'pls ss'."
-    fi
+    _info "Opening $url"
+        
+    case "$OSTYPE" in
+        darwin*) open $url ;;
+        linux*) xdg-open $url ;;
+        *) echo "Unknown OS $OSTYPE" ;;
+    esac
 }
 
 _bash() {
+    local containers
+    local container
+    local container_chosen
+
     POD_NAME=$(_find_pod $1)
     if [[ $POD_NAME ]]; then
-        _info "Entering $POD_NAME"
+        _info "Entering pod $POD_NAME"
+
         if [[ $2 ]]; then
-            kubectl exec -it $POD_NAME --container $1-$2-container -- bash
+            container=$1-$2-containers
         else
-            kubectl exec -it $POD_NAME bash
+            containers=$(_find_pod_containers $POD_NAME)
+            container_cnt=0
+            for container in $containers
+            do
+                container_cnt=$(($container_cnt+1))
+            done
+
+            if [[ ${container_cnt} -gt 1 ]]; then
+                echo "Multiple pod containers detected. Which one should I enter?"
+
+                while [ -z $container_chosen ] 
+                do
+                    select container in $containers;
+                    do
+                        container_chosen=$container
+                        break
+                    done
+
+                    if [ -z $container_chosen ]
+                    then
+                        _warn "Please choose a valid option"
+                    fi
+                done
+            else
+                container_chosen=$containers
+            fi
         fi
+
+        echo "Entering container $container_chosen"
+        kubectl exec -it $POD_NAME --container $container_chosen -- bash
     fi
 }
 
@@ -493,10 +558,7 @@ _reset() {
 
 _urls() {
     echo "$1 exposed at:"
-    for port in $(_find_service_ports $1)
-    do
-        echo "http://prima:$port"
-    done
+    _find_urls $1
 }
 
 _kys() {
@@ -584,7 +646,7 @@ _main() {
 
         # Debugging
 
-        status|services|ls|ps|ss)
+        status|ls|ps|ss)
             _status
             ;;
 
@@ -594,6 +656,20 @@ _main() {
 
         inspect|describe)
             _inspect $@
+            ;;
+
+        # Kubernetes
+
+        deployments)
+            _deployments
+            ;;
+
+        services)
+            _services
+            ;;
+
+        pods)
+            _pods
             ;;
 
         # DB
