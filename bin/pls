@@ -135,7 +135,7 @@ _find_service_ports() {
 _find_urls() {
     for port in $(_find_service_ports $1)
     do
-        echo "http://prima:$port"
+        echo "http://prima.local:$port"
     done
 }
 
