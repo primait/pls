@@ -137,7 +137,11 @@ _find_service_ports() {
     echo "$(_find_service $1 | grep -oP ':[0-9]+\/' | grep -oP '[0-9]+')"
 }
 
-_check_requirements() {
+###
+# Checks
+###
+
+_has_requirements() {
     if [ "${PLS_ALLOW_ROOT:-0}" -ne 1 ] && [ "$EUID" -eq 0 ] ;
         then _error "Please do not run as root. If you *really* know what you are doing, set the env variable PLS_ALLOW_ROOT=1. (es. 'sudo PLS_ALLOW_ROOT=1 pls start')"
         exit
@@ -505,7 +509,7 @@ _kys() {
 
 _main() {
     _load_cfg
-    _check_requirements
+    _has_requirements
 
     COMMAND=$(echo $1 | tr A-Z a-z)
     shift
