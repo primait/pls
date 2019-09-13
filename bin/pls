@@ -402,8 +402,8 @@ _dump() {
 
     # Overwrite api keys to default values
     echo "
-    UPDATE prima.security_apikey SET apikey = 'frontendapikey' WHERE operator_id = 3;
-    UPDATE prima.security_apikey SET apikey = 'backofficeapikey' WHERE operator_id = 4;" >> $output
+    UPDATE prima.security_apikey SET apikey = 'frontendsecretapikey' WHERE operator_id = 3;
+    UPDATE prima.security_apikey SET apikey = 'backofficesecretapikey' WHERE operator_id = 4;" >> $output
 
     _info "Prima data dumped in '$output'. Now you can restore your local database with 'pls restore'."
 
