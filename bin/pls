@@ -182,9 +182,9 @@ _install() {
     _setup
     _update_script
     _start
+    _fix_k8s_permissions
     _add $DEFAULT_PROJECTS
     _build $DEFAULT_PROJECTS
-    _fix_k8s_permissions
     _info """
 
 Everything should be set up and running. Now you can add services with 'pls add *service*'. Try with 'pls add prima'! 👏👏
