@@ -26,6 +26,7 @@ _update_script() {
 
 readonly DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 readonly USER="$(whoami)"
+readonly DEFAULT_PROJECTS="prima peano borat bburago hal9000 roger"
 
 _help() {
     cat <<HEREDOC
@@ -181,7 +182,8 @@ _install() {
     _setup
     _update_script
     _start
-    _build
+    _add $DEFAULT_PROJECTS
+    _build $DEFAULT_PROJECTS
     _fix_k8s_permissions
     _info """
 
@@ -221,9 +223,6 @@ _build() {
     local projects
 
     projects="$@"
-    if [ -z $projects ] ; then
-        projects="prima peano borat bburago hal9000 roger"
-    fi
 
     cd $PROJECTS_DIR
 
