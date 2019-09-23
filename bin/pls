@@ -77,7 +77,7 @@ _load_cfg() {
         source $PLS_CFG
     fi
 
-    PROJECTS_DIR=${PROJECTS_DIR:-$(readlink -f $DIR/../..)}
+    PROJECTS_DIR=${PROJECTS_DIR:-$(realpath $DIR/../..)}
     PERSISTENTVOLUMES_DIR=${PERSISTENTVOLUMES_DIR:-/mnt/k8s-pv}
     PLS_DIR=${PLS_DIR:-$PROJECTS_DIR/pls}
     SCRIPT_URL=${SCRIPT_URL:-"https://raw.githubusercontent.com/primait/pls/master/bin/pls"}
