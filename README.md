@@ -55,6 +55,15 @@ In caso tu abbia modificato il container Docker, `pls rebuild *nome_servizio*`
   * `pls inspect *nome_servizio*`
 * Per visionare lo status generale di Kubernetes
   * `pls status`
+  
+## Servizi supportati
+
+* Prima
+* Borat
+* Peano
+* Hal9000
+* Roger
+* Bburago
 
 ## Avviare il progetto Prima 
 
@@ -73,15 +82,15 @@ In caso tu abbia modificato il container Docker, `pls rebuild *nome_servizio*`
 É possibile aggiornare `pls` all'ultima versione con `pls update`
 
 ## 🆘 Troubleshooting
-* Prima non funziona!
-  * Assicurati che il file `parameters.yml` sia aggiornato con i valori presenti in `parameters.yml.dist`
-* `cURL error 7: Failed to connect to test-*servizio*-service port XXXX: Connection refused (see http://curl.haxx.se/libcurl/c/libcurl-errors.html)`!
-  * `pls add *servizio*`
-* `pls add` da errori strani!
- * Assicurati che sei su branch `master` e di aver fatto `git pull`. In caso dia ancora errori, assicurati che sia presente un `kubernetes.yml.dist`. Se non é presente significa che ancora non é stato configurato per funzionare con `kubernetes`
-* `pls dump` mi ci manda con `mysqldump: command: not found`!
-  * `sudo apt-get install mysql-client`
 * Kubernetes mi da problemi di permessi!
   * `pls fix`
+* Prima non funziona!
+  * Assicurati che il file `parameters.yml` sia aggiornato con i valori presenti in `parameters.yml.dist`
+* `cURL error 7: Failed to connect to *servizio*-service port XXXX: Connection refused (see http://curl.haxx.se/libcurl/c/libcurl-errors.html)`!
+  * `pls add *servizio*`
+* `pls add *servizio*` da errori strani!
+  * Assicurati che `*servizio*` sia su `master` e di aver fatto `git pull`. In caso dia ancora errori, assicurati che sia presente un `kubernetes.yml.dist`. Se non é presente significa che ancora non é stato configurato per funzionare con `kubernetes`.
+* `pls dump` esplode con `mysqldump: command: not found`!
+  * `sudo apt-get install mysql-client`
 * É tutto rotto e la vita fa schifo.
   * `pls reset` (⚠️ **NB**: Resetta _tutto_)
