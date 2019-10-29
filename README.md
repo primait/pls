@@ -36,12 +36,12 @@ In caso tu abbia modificato il container Docker, `pls rebuild *nome_servizio*`
 ## Accedere a un servizio
 
 * Apri il servizio sul browser (se disponibile)
- * `pls open *nome_servizio*`
+  * `pls open *nome_servizio*`
 * Ottieni l'url del servizio 
- * `pls url *nome_servizio*`
+  * `pls url *nome_servizio*`
 * Accedi alla shell del servizio
- * `pls bash *nome_servizio*` 
- * 🔎 _FYI_: Se disponibili piú container, puoi entrare in un container specifico con `pls bash *nome_servizio* *nome_container*` (ex. `pls bash prima nginx`)
+  * `pls bash *nome_servizio*` 
+  * 🔎 _FYI_: Se disponibili piú container, puoi entrare in un container specifico con `pls bash *nome_servizio* *nome_container*` (ex. `pls bash prima nginx`)
 
 ⚠️ **NB**: A parte alcune eccezioni (Prima e Borat), Kubernetes assegna a ogni servizio una porta random in range 30000~3xxxx che potrebbe variare tra un riavvio e l'altro. Puoi settare una porta specifica settando `kubernetes.yml -> spec -> ports -> nodePort` (guarda come esempio di Prima)
 
