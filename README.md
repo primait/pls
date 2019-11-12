@@ -74,8 +74,15 @@ In caso tu abbia modificato il container Docker, `pls rebuild *nome_servizio*`
     * clona il repo di Artemide
     * `biscuit get -f artemide/configs/secrets/common.yml common_staging_db_mysql_prima`
 * `pls restore`
-* Copia il file `app/config/parameters.yml.dist` in `app/config/parameters.yml`
-  * Se utilizzavi Docker, rinomina il file `parameters.yml` in `parameters.yml.backup`
+* Assicurati sia presente `app/config/parameters.yml` e che i contenuti coincidano (o perlomeno assomiglino) a `app/config/parameters.yml.dist`
+  * Se non presente o sono valori completamente diversi, rinomina il file `app/config/parameters.yml` in `app/config/parameters.yml.backup` e copia `app/config/parameters.yml.dist` in `app/config/parameters.yml`
+* Builda gli asset locali con 
+```
+pls sh prima nginx
+yarn
+yarn watch
+```
+* Accedi a `http://prima.local:30000`
 
 ## Aggiornamento
 
@@ -92,5 +99,11 @@ In caso tu abbia modificato il container Docker, `pls rebuild *nome_servizio*`
   * Assicurati che `*servizio*` sia su `master` e di aver fatto `git pull`. In caso dia ancora errori, assicurati che sia presente un `kubernetes.yml.dist`. Se non é presente significa che ancora non é stato configurato per funzionare con `kubernetes`.
 * `pls dump` esplode con `mysqldump: command: not found`!
   * `sudo apt-get install mysql-client`
+* Prima esplode con `An exception has been thrown during the rendering of a template ("Warning: file_get_contents(/code/web/assets/aboveTheFold.css): failed to open stream: No such file or directory").`
+```
+pls sh prima nginx
+yarn
+yarn watch
+```
 * É tutto rotto e la vita fa schifo.
   * `pls reset` (⚠️ **NB**: Resetta _tutto_)
