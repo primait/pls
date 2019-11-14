@@ -61,6 +61,7 @@ Gestione dei servizi
     bash <service>      Entra in bash nel container del servizio (alias "sh")
 
 Altro
+    clone <service>     Clona il repository git del servizio nella tua cartella progetti
     help                Stampa questo messaggio (default)
 HEREDOC
 }
@@ -189,16 +190,15 @@ _install() {
 
 Everything should be set up and running. Now you can add services with 'pls add *service*'. Try with 'pls add prima'! 👏👏
 
-⬇️ PLS READ ⬇️ 
+⬇️ READ ⬇️ !!! ⬇️ READ ⬇️ !!! ⬇️ READ ⬇️ 
 
-Just one more thing: you should add in your /etc/hosts file the following line
+You should add in your /etc/hosts file the following line
 
 127.0.0.1   prima.local
 
 Note that if you are using another machine you should change 127.0.0.1 with its public IP instead.
-Also note that
 
-⬆️ PLS READ ⬆️"
+⬆️ READ ⬆️ !!! ⬆️ READ ⬆️ !!! ⬆️ READ ⬆️"
 }
 
 _setup() {
@@ -283,7 +283,7 @@ _add() {
             PROJECT_DIR=$PROJECTS_DIR/$project
             if [[ ! -d "$PROJECT_DIR" ]]; then
                 echo "Project not found locally. Attempting to fetch it from repository..."
-                git clone git@github.com:primait/$project.git $PROJECT_DIR
+                _clone $project
             fi
 
             cd $PROJECT_DIR 
@@ -615,6 +615,14 @@ _urls() {
     fi
 }
 
+_clone() {
+    if [ ! -z $1 ]; then
+        git clone git@github.com:primait/$1.git $PROJECTS_DIR/$1
+    else
+        _error "Usage: pls clone *service*"
+    fi
+}
+
 _kys() {
     echo "You first"
 }
@@ -737,6 +745,10 @@ _main() {
             ;;
 
         # Misc
+
+        clone)
+            _clone $@
+            ;;
 
         die|kys)
             _kys
