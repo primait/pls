@@ -124,6 +124,21 @@ spec:
   selector:
     app.kubernetes.io/name: postgres
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: statsd-service
+  labels:
+    app.kubernetes.io/name: statsd
+spec:
+  type: NodePort
+  ports:
+    - port: 8125
+      targetPort: 8125
+      protocol: UDP
+  selector:
+    app.kubernetes.io/name: statsd
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -257,3 +272,30 @@ spec:
         - name: postgres-pv-claim
           persistentVolumeClaim:
             claimName: postgres-pv-claim
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: statsd
+  labels:
+    app.kubernetes.io/name: statsd
+spec:
+  replicas:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: statsd
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: statsd
+    spec:
+      containers:
+        - name: statsd-container
+          image: mendhak/udp-listener:latest
+          ports:
+            - name: statsd
+              containerPort: 8125
+              protocol: UDP
+          env:
+            - name: UDPPORT
+              value: "8125"
