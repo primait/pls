@@ -320,7 +320,8 @@ _remove() {
             PROJECT_DIR=$PROJECTS_DIR/$project
             if [[ -d "$PROJECT_DIR" ]]; then
                 cd $PROJECT_DIR ;\
-                kubectl delete -f kubernetes.yml
+                kubectl delete -f kubernetes.yml ;\
+                rm kubernetes.yml
             else
                 _error "$PROJECT_DIR does not exist🤷"
             fi
