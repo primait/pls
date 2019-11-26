@@ -130,6 +130,12 @@ _find_pod_containers() {
     echo "$(kubectl describe pod $pod | grep "container:" | grep -oP "(.*)-container" --color=never)"
 }
 
+_find_container() {
+    local pod
+    pod=$(_find_pod $1)
+    echo "$(kubectl describe pod $pod | grep "container:" | grep -oP "(.*)-container" --color=never | grep $2)"
+}
+
 _find_service() {
     echo "$(kubectl get services | grep $1)"
 }
@@ -567,11 +573,23 @@ _bash() {
 }
 
 _logs() {
+    local pod_name
     if [ ! -z $1 ]; then
-        POD_NAME=$(_find_pod $1)
-        if [ ! -z "${POD_NAME}" ]; then
-            _info "Following $POD_NAME"
-            kubectl logs -f $POD_NAME --all-containers=true
+        pod_name=$(_find_pod $1)
+        if [ ! -z "${pod_name}" ]; then
+            if [ ! -z $2 ]; then
+                local container_name
+                container_name=$(_find_container $1 $2)
+                if [ ! -z "${container_name}" ]; then
+                    _info "Following $pod_name: $container_name"
+                    kubectl logs -f $pod_name -c $container_name
+                else
+                    _error "Container not found: $2"
+                fi
+            else
+                _info "Following $pod_name"
+                kubectl logs -f $pod_name --all-containers=true
+            fi
         else
             _error "Service not found: $1"
         fi

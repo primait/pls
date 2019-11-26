@@ -50,7 +50,8 @@ In caso tu abbia modificato il container Docker, `pls rebuild *nome_servizio*`
 * Per accedere in _bash_
   * `pls bash *nome_servizio*` 
 * Per leggere i log
-  * `pls log *nome_servizio*`
+  * `pls log *nome_servizio*` per tutti i container
+  * `pls log *nome_servizio* *nome_container*` per un container specifico
 * Per visionare lo status dettagliato di un container
   * `pls inspect *nome_servizio*`
 * Per visionare lo status generale di Kubernetes
