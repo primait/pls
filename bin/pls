@@ -38,8 +38,8 @@ usage: pls <command>
 
 Primo avvio e troubleshooting
     install             Installa pls in locale e configura i vari servizi k8s
-    build <services>   Rebuilda i vari container (alias "update", "refresh", "rebuild")
-    refresh <services> Ricarica il file kubernetes.yml
+    build <services>    Rebuilda i vari container (alias "update", "refresh", "rebuild")
+    refresh <services>  Ricarica il file kubernetes.yml
     fix                 Sistema i permessi delle cartelle
 
 Database
@@ -53,10 +53,11 @@ Gestione dell'ambiente locale
     reset               Reset completo dell'ambiente locale
 
 Gestione dei servizi
-    add <services>      Aggiunge i servizi allo stack locale (ad es: pls add prima hal9000)
-    remove <services>   Rimuove i servizi dallo stack locale (alias "rm") (ad es: pls rm prima hal9000)
+    add <services>      Aggiunge i servizi allo stack locale (ad es: "pls add prima hal9000")
+    remove <services>   Rimuove i servizi dallo stack locale (alias "rm") (ad es: "pls rm prima hal9000")
     restart <services>  Riavvia il servizio
 
+    log <service> <container?>  Stampa (e segue) i log del servizio + container (se fornito) (ad es: "pls log prima", "pls log prima php")
     open <service>      Apre il servizio nel browser
     bash <service>      Entra in bash nel container del servizio (alias "sh")
 
