@@ -180,6 +180,17 @@ _has_requirements() {
 Please follow https://github.com/primait/board/wiki/Kubernetes to install the correct version"
         exit
     fi
+
+    if [[ $PROJECTS_DIR = '/usr' ]]; then
+        _error "There is something wrong here. Your project directory seems to be $PROJECTS_DIR, which is just plain wrong. This could be because:
+        
+* You are running 'pls *command*' without having done 'pls install' before. Do that.
+* You are running 'pls install' from an already installed 'pls'. If you *really* need to run it, do so from pls' project directory and './bin/pls install'. 
+* Your '~/.pls/config.rc' has an invalid PROJECTS_DIR setting. Fix it.
+* Cosmic rays or something.
+"
+        exit
+    fi
 }
 
 _has_minikube() {
@@ -209,11 +220,6 @@ _has_systemd_resolved() {
 ###
 
 _install() {
-    if [[ "$(pwd)" = '/usr' ]]; then
-        _error "It seems like you are running 'pls install' from an already installed pls. That's illegal. If you *really* want to install again, you should go in pls' project directory and './bin/pls install'."
-        exit
-    fi
-
     _setup
     _update_script
     _start
