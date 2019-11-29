@@ -30,6 +30,7 @@ _update_script() {
 readonly DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 readonly USER="$(whoami)"
 readonly DEFAULT_PROJECTS="prima peano borat bburago hal9000 roger"
+readonly MINIKUBE_VERSION_SUPPORTED="minikube version: v1.3.1"
 
 _help() {
     cat <<HEREDOC
@@ -169,11 +170,29 @@ _has_requirements() {
         then _error "'minikube' is not installed. See: https://github.com/primait/board/wiki/Kubernetes"
         exit
     fi
+
+    if ! _has_minikube_supported_version
+        then _error "'minikube' is installed, but its version is not supported. 
+
+    Installed: $(_get_minikube_version)
+    Supported: $MINIKUBE_VERSION_SUPPORTED
+
+Please follow https://github.com/primait/board/wiki/Kubernetes to install the correct version"
+        exit
+    fi
 }
 
 _has_minikube() {
     minikube > /dev/null
     [[ $? == 0 ]]
+}
+
+_get_minikube_version() {
+    minikube version | grep -oP "minikube version: (.*)"
+}
+
+_has_minikube_supported_version() {
+    [[ "$(_get_minikube_version)" == $MINIKUBE_VERSION_SUPPORTED ]]
 }
 
 _has_pls() {
