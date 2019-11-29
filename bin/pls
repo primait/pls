@@ -18,6 +18,9 @@ _update_script() {
     _info "Fetching script from $url"
     if sudo curl -fsSL $url -o "$SCRIPT_PATH"; then
         sudo chmod +x $SCRIPT_PATH
+        cd $PROJECTS_DIR/pls
+        git pull
+        _refresh_infrastructure
         _info "Update completed!"
     else
         _error "There was a problem during the update."
