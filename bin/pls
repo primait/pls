@@ -183,7 +183,7 @@ Please follow https://github.com/primait/board/wiki/Kubernetes to install the co
 
     if [[ $PROJECTS_DIR = '/usr' ]]; then
         _error "There is something wrong here. Your project directory seems to be $PROJECTS_DIR, which is just plain wrong. This could be because:
-        
+
 * You are running 'pls *command*' without having done 'pls install' before. Do that.
 * You are running 'pls install' from an already installed 'pls'. If you *really* need to run it, do so from pls' project directory and './bin/pls install'. 
 * Your '~/.pls/config.rc' has an invalid PROJECTS_DIR setting. Fix it.
@@ -271,7 +271,7 @@ _build() {
 
         case $project in
         prima)
-            docker build prima/app/docker/web/dev/ -t prima-nginx:dev
+            docker build prima/app/docker/web/ -t prima-nginx:dev
             docker build prima/app/docker/php/ -t prima-php:dev
             ;;
         *) 
