@@ -122,23 +122,23 @@ _error() {
 }
 
 _find_pod() {
-    echo "$(kubectl get pods | awk '{ print $1 }' | grep $1)"
+    echo "$(sudo kubectl get pods | awk '{ print $1 }' | grep $1)"
 }
 
 _find_pod_containers() {
     local pod
     pod=$(_find_pod $1)
-    echo "$(kubectl describe pod $pod | grep "container:" | grep -oP "(.*)-container" --color=never)"
+    echo "$(sudo kubectl describe pod $pod | grep "container:" | grep -oP "(.*)-container" --color=never)"
 }
 
 _find_container() {
     local pod
     pod=$(_find_pod $1)
-    echo "$(kubectl describe pod $pod | grep "container:" | grep -oP "(.*)-container" --color=never | grep $2)"
+    echo "$(sudo kubectl describe pod $pod | grep "container:" | grep -oP "(.*)-container" --color=never | grep $2)"
 }
 
 _find_service() {
-    echo "$(kubectl get services | grep $1)"
+    echo "$(sudo kubectl get services | grep $1)"
 }
 
 _find_service_ports() {
@@ -259,7 +259,7 @@ _refresh_infrastructure() {
     cd $kube_dir
     sed  -e "s|{PERSISTENTVOLUMES_DIR}|$PERSISTENTVOLUMES_DIR|" $PLS_DIR/infrastructure.yml.dist > infrastructure.yml
     
-    kubectl apply -f $kube_dir/infrastructure.yml
+    sudo kubectl apply -f $kube_dir/infrastructure.yml
 }
 
 _refresh_service() {
@@ -307,7 +307,7 @@ _add() {
             _build $project
 
             cd $PROJECT_DIR 
-            kubectl apply -f kubernetes.yml
+            sudo kubectl apply -f kubernetes.yml
 
             echo ""
 
@@ -327,7 +327,7 @@ _remove() {
             PROJECT_DIR=$PROJECTS_DIR/$project
             if [[ -d "$PROJECT_DIR" ]]; then
                 cd $PROJECT_DIR ;\
-                kubectl delete -f kubernetes.yml ;\
+                sudo kubectl delete -f kubernetes.yml ;\
                 rm kubernetes.yml
             else
                 _error "$PROJECT_DIR does not exist🤷"
@@ -428,17 +428,17 @@ _restore() {
 
 _deployments() {
     printf "\nDeployments:\n" ;\
-    kubectl get deployments --all-namespaces
+    sudo kubectl get deployments --all-namespaces
 }
 
 _services() {
     printf "\nServices:\n" ;\
-    kubectl get services
+    sudo kubectl get services
 }
 
 _pods() {
     printf "\nPods:\n" ;\
-    kubectl get pods
+    sudo kubectl get pods
 }
 
 _status() {
@@ -467,7 +467,7 @@ _restart() {
             POD_NAME=$(_find_pod $project)
             if [ ! -z "${POD_NAME}" ]; then
                 _info "Restarting $POD_NAME"
-                kubectl delete pod $POD_NAME
+                sudo kubectl delete pod $POD_NAME
             else
                 _error "Service not found: $project"
             fi
@@ -564,7 +564,7 @@ _bash() {
             fi
 
             echo "Entering container $container_chosen"
-            kubectl exec -it $POD_NAME --container $container_chosen -- bash
+            sudo kubectl exec -it $POD_NAME --container $container_chosen -- bash
         else
             _error "Service not found: $1"
         fi
@@ -583,13 +583,13 @@ _logs() {
                 container_name=$(_find_container $1 $2)
                 if [ ! -z "${container_name}" ]; then
                     _info "Following $pod_name: $container_name"
-                    kubectl logs -f $pod_name -c $container_name
+                    sudo kubectl logs -f $pod_name -c $container_name
                 else
                     _error "Container not found: $2"
                 fi
             else
                 _info "Following $pod_name"
-                kubectl logs -f $pod_name --all-containers=true
+                sudo kubectl logs -f $pod_name --all-containers=true
             fi
         else
             _error "Service not found: $1"
@@ -605,7 +605,7 @@ _inspect() {
         echo $POD_NAME
         if [ ! -z "${POD_NAME}" ]; then
             _info "Inspecting $POD_NAME"
-            kubectl describe pod $POD_NAME
+            sudo kubectl describe pod $POD_NAME
         else
             _error "Service not found: $1"
         fi
@@ -620,7 +620,7 @@ _reset() {
     read -p "This will delete all pods, services and deployments. Are you sure you want to reset? Type 'yes' to proceed: " proceed
 
     if [[ "yes" == $(echo $proceed | tr A-Z a-z) ]] ; then
-        kubectl delete deployment --all
+        sudo kubectl delete deployment --all
     else
         _warn "Reset cancelled."
     fi
