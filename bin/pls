@@ -190,6 +190,11 @@ _has_systemd_resolved() {
 ###
 
 _install() {
+    if [[ "$(pwd)" = '/usr' ]]; then
+        _error "It seems like you are running 'pls install' from an already installed pls. That's illegal. If you *really* want to install again, you should go in pls' project directory and './bin/pls install'."
+        exit
+    fi
+
     _setup
     _update_script
     _start
